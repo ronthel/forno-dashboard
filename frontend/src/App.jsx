@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders } from 'lucide-react';
+import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown } from 'lucide-react';
 import ChartCard from './ChartCard';
 import Login from './Login';
 import AlarmModal from './AlarmModal';
@@ -22,7 +22,7 @@ export default function App() {
   const [charts, setCharts] = useState([]);
   const [availableFields, setAvailableFields] = useState([]);
   const [sensorConfigs, setSensorConfigs] = useState({});
-  const [selectedField, setSelectedField] = useState('');
+  const [selectedFields, setSelectedFields] = useState([]);
   
   const [timeRange, setTimeRange] = useState('1h');
   const [refreshInterval, setRefreshInterval] = useState(5000);
@@ -36,6 +36,7 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false);
 
   const [currentView, setCurrentView] = useState('dashboard');
+  const [isFieldPickerOpen, setIsFieldPickerOpen] = useState(false);
 
   const [oeeMetricsData, setOeeMetricsData] = useState({
     runTimeSec: 0,
@@ -93,11 +94,17 @@ export default function App() {
       if (res.ok) {
         const savedCharts = await res.json();
         if (Array.isArray(savedCharts) && savedCharts.length > 0) {
-          setCharts(savedCharts);
+          // Compatibilidade com layouts antigos salvos com "field" (string única)
+          // em vez de "fields" (array) — normaliza para o novo formato.
+          const normalizedCharts = savedCharts.map((c) => ({
+            ...c,
+            fields: Array.isArray(c.fields) ? c.fields : (c.field ? [c.field] : []),
+          }));
+          setCharts(normalizedCharts);
         } else {
           setCharts([
-            { id: '1', title: 'Sensor - CTP01', field: 'CTP01', minLimit: 100, maxLimit: 800 },
-            { id: '2', title: 'Sensor - CTP02', field: 'CTP02', minLimit: 100, maxLimit: 800 }
+            { id: '1', title: 'Sensor - CTP01', fields: ['CTP01'], minLimit: 100, maxLimit: 800 },
+            { id: '2', title: 'Sensor - CTP02', fields: ['CTP02'], minLimit: 100, maxLimit: 800 }
           ]);
         }
       }
@@ -107,7 +114,7 @@ export default function App() {
         const fieldsData = await fieldsRes.json();
         if (Array.isArray(fieldsData) && fieldsData.length > 0) {
           setAvailableFields(fieldsData);
-          setSelectedField(fieldsData[0]);
+          setSelectedFields([fieldsData[0]]);
         }
       }
 
@@ -235,23 +242,37 @@ export default function App() {
 
   const handleAddChart = (e) => {
     e.preventDefault();
-    if (!selectedField) return;
+    if (!selectedFields || selectedFields.length === 0) return;
 
-    if (charts.some((c) => c.field === selectedField)) {
-      alert("Este sensor já está sendo exibido na tela!");
+    const alreadyDisplayed = charts.some(
+      (c) => Array.isArray(c.fields) && c.fields.length === selectedFields.length &&
+        selectedFields.every((f) => c.fields.includes(f))
+    );
+    if (alreadyDisplayed) {
+      alert("Essa combinação de variáveis já está sendo exibida na tela!");
       return;
     }
 
-    const friendlyName = sensorConfigs[selectedField]?.descricao || `Sensor - ${selectedField}`;
+    const friendlyName = selectedFields
+      .map((f) => sensorConfigs[f]?.descricao || f)
+      .join(' + ');
+
+    const firstField = selectedFields[0];
     const newChart = {
       id: Date.now().toString(),
       title: friendlyName,
-      field: selectedField,
-      minLimit: sensorConfigs[selectedField]?.minLimit ?? 100,
-      maxLimit: sensorConfigs[selectedField]?.maxLimit ?? 800
+      fields: selectedFields,
+      minLimit: sensorConfigs[firstField]?.minLimit ?? 100,
+      maxLimit: sensorConfigs[firstField]?.maxLimit ?? 800
     };
 
     setCharts([...charts, newChart]);
+  };
+
+  const handleToggleFieldSelection = (field) => {
+    setSelectedFields((prev) =>
+      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
+    );
   };
 
   const handleRemoveChart = (id) => {
@@ -355,24 +376,53 @@ export default function App() {
               </select>
             </div>
 
-            <form onSubmit={handleAddChart} className="flex gap-1.5">
-              <select
-                value={selectedField}
-                onChange={(e) => setSelectedField(e.target.value)}
-                className="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none font-mono"
+            <form onSubmit={handleAddChart} className="flex gap-1.5 relative">
+              <button
+                type="button"
+                onClick={() => setIsFieldPickerOpen((prev) => !prev)}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none font-mono min-w-[140px] justify-between"
               >
-                {availableFields.map((field) => {
-                  const friendlyDesc = sensorConfigs[field]?.descricao;
-                  return (
-                    <option key={field} value={field}>
-                      {friendlyDesc ? `${friendlyDesc} (${field})` : field}
-                    </option>
-                  );
-                })}
-              </select>
+                <span className="truncate">
+                  {selectedFields.length === 0
+                    ? 'Selecionar variáveis...'
+                    : selectedFields.length === 1
+                    ? (sensorConfigs[selectedFields[0]]?.descricao || selectedFields[0])
+                    : `${selectedFields.length} variáveis selecionadas`}
+                </span>
+                <ChevronDown size={13} className="text-amber-400 shrink-0" />
+              </button>
+
+              {isFieldPickerOpen && (
+                <div className="absolute top-full left-0 mt-1 z-20 bg-slate-800 border border-slate-700 rounded shadow-xl w-64 max-h-64 overflow-y-auto p-1.5">
+                  <p className="text-[10px] text-slate-400 px-1.5 pb-1 uppercase font-semibold">
+                    Marque uma ou mais variáveis
+                  </p>
+                  {availableFields.map((field) => {
+                    const friendlyDesc = sensorConfigs[field]?.descricao;
+                    const checked = selectedFields.includes(field);
+                    return (
+                      <label
+                        key={field}
+                        className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-700/60 cursor-pointer text-xs text-slate-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleToggleFieldSelection(field)}
+                          className="accent-amber-500"
+                        />
+                        <span className="truncate">
+                          {friendlyDesc ? `${friendlyDesc} (${field})` : field}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
 
               <button
                 type="submit"
+                onClick={() => setIsFieldPickerOpen(false)}
                 className="flex items-center gap-1 bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded text-xs font-medium"
               >
                 <Plus size={14} /> Adicionar
