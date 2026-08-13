@@ -200,7 +200,7 @@ export default function App() {
   }
 
   if (currentView === 'configTurnos') {
-    return <ConfigView onBack={() => setCurrentView('oee')} />;
+    return <ConfigView onBack={() => setCurrentView('dashboard')} />;
   }
 
   if (currentView === 'configSensores') {

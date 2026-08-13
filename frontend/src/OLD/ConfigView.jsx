@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Save, Settings, Clock, Target, Check } from 'lucide-react';
+import { ArrowLeft, Save, Settings, Clock, Target, Check } from 'lucide-react';
 
 export default function ConfigView({ onBack }) {
   const [turnosConfig, setTurnosConfig] = useState({
@@ -56,7 +56,7 @@ export default function ConfigView({ onBack }) {
             onClick={onBack}
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
           >
-            <Home size={16} /> Início
+            <ArrowLeft size={16} /> Voltar
           </button>
           <div>
             <h1 className="text-xl font-bold text-amber-500 flex items-center gap-2">

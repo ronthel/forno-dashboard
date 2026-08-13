@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gauge, ArrowLeft, Activity, CheckCircle, Clock, Database, TrendingUp, TrendingDown, Settings } from 'lucide-react';
+import { Gauge, Home, Activity, CheckCircle, Clock, Database, TrendingUp, TrendingDown, Settings } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 
 export default function OeeView({ onBack, onOpenConfig, oeeData }) {
@@ -73,7 +73,7 @@ export default function OeeView({ onBack, onOpenConfig, oeeData }) {
             onClick={onBack}
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
           >
-            <ArrowLeft size={16} /> Voltar ao Dashboard
+            <Home size={16} /> Início
           </button>
           <div>
             <h1 className="text-xl font-bold text-amber-500 flex items-center gap-2">
