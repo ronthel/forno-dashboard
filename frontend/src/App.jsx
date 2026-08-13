@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown } from 'lucide-react';
 import ChartCard from './ChartCard';
 import Login from './Login';
@@ -46,12 +46,12 @@ export default function App() {
 
   const [activeAlertsMap, setActiveAlertsMap] = useState({});
 
-  const handleAlertStatusChange = (chartId, isAlert) => {
+  const handleAlertStatusChange = useCallback((chartId, isAlert) => {
     setActiveAlertsMap((prev) => {
       if (prev[chartId] === isAlert) return prev;
       return { ...prev, [chartId]: isAlert };
     });
-  };
+  }, []);
 
   const activeAlertsCount = Object.values(activeAlertsMap).filter(Boolean).length;
 
@@ -179,13 +179,17 @@ export default function App() {
     setCustomDates(null);
   };
 
-  const handleUpdateChartLimits = (chartId, minLimit, maxLimit) => {
+  const handleUpdateChartLimits = useCallback((chartId, minLimit, maxLimit) => {
     setCharts((prevCharts) =>
       prevCharts.map((c) =>
         c.id === chartId ? { ...c, minLimit, maxLimit } : c
       )
     );
-  };
+  }, []);
+
+  const handleRemoveChart = useCallback((id) => {
+    setCharts((prevCharts) => prevCharts.filter((chart) => chart.id !== id));
+  }, []);
 
   if (!isAuthenticated || isServerDown) {
     return (
@@ -273,10 +277,6 @@ export default function App() {
     setSelectedFields((prev) =>
       prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
     );
-  };
-
-  const handleRemoveChart = (id) => {
-    setCharts(charts.filter((chart) => chart.id !== id));
   };
 
   return (

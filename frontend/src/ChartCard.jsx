@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Trash2, Download, FileText, ZoomOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import {
@@ -15,6 +15,18 @@ import {
 
 // Paleta de cores usada como fallback para variáveis sem cor configurada
 const FALLBACK_COLORS = ['#38bdf8', '#f59e0b', '#22c55e', '#ef4444', '#a855f7', '#eab308', '#f472b6', '#2dd4bf'];
+
+// Mínimo/máximo em um loop simples — evita o custo (e o risco de estouro de pilha
+// em séries grandes, ex.: período de 7 dias) de Math.min(...array)/Math.max(...array).
+const minMax = (values) => {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return [min, max];
+};
 
 const exportToCSV = (title, data, seriesMeta) => {
   if (!data || data.length === 0) return;
@@ -55,8 +67,7 @@ const exportToPDF = (title, data, seriesMeta) => {
   seriesMeta.forEach((s) => {
     const values = data.map((d) => d[s.field]).filter((v) => v !== undefined && v !== null);
     if (values.length === 0) return;
-    const minVal = Math.min(...values).toFixed(2);
-    const maxVal = Math.max(...values).toFixed(2);
+    const [minVal, maxVal] = minMax(values);
     const avgVal = (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
 
     doc.setFontSize(10);
@@ -64,7 +75,7 @@ const exportToPDF = (title, data, seriesMeta) => {
     doc.text(`${s.descricao} (${s.field}):`, 20, y);
     y += 6;
     doc.setTextColor(80);
-    doc.text(`  Min: ${minVal} ${s.unidade}   Max: ${maxVal} ${s.unidade}   Media: ${avgVal} ${s.unidade}   Faixa: ${s.minLimit} a ${s.maxLimit} ${s.unidade}`, 20, y);
+    doc.text(`  Min: ${minVal.toFixed(2)} ${s.unidade}   Max: ${maxVal.toFixed(2)} ${s.unidade}   Media: ${avgVal} ${s.unidade}   Faixa: ${s.minLimit} a ${s.maxLimit} ${s.unidade}`, 20, y);
     y += 8;
   });
 
@@ -118,8 +129,11 @@ const playAlarmSound = (isMuted) => {
   } catch (err) { console.warn('Audio não permitido:', err); }
 };
 
-export default function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, onAlertStatusChange, isMuted }) {
-  const fields = Array.isArray(chart.fields) ? chart.fields : (chart.field ? [chart.field] : []);
+function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, onAlertStatusChange, isMuted }) {
+  const fields = useMemo(
+    () => (Array.isArray(chart.fields) ? chart.fields : (chart.field ? [chart.field] : [])),
+    [chart.fields, chart.field]
+  );
   const isSingleField = fields.length === 1;
 
   const [data, setData] = useState([]);
@@ -148,21 +162,28 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
     setRefAreaRight(null);
   }, [timeRange, customDates]);
 
-  // Metadados de cada variável do gráfico (descrição, unidade, limites, cor, fator de correção)
-  const seriesMeta = fields.map((field, idx) => {
-    const cfg = sensorConfigsMap[field] || {};
-    return {
-      field,
-      descricao: cfg.descricao || field,
-      unidade: cfg.unidade || '',
-      minLimit: Number(cfg.minLimit) || 0,
-      maxLimit: Number(cfg.maxLimit) || 0,
-      cor: cfg.cor || FALLBACK_COLORS[idx % FALLBACK_COLORS.length],
-      fatorCorrecao: Number(cfg.fatorCorrecao) || 1.0,
-    };
-  });
+  // Metadados de cada variável do gráfico (descrição, unidade, limites, cor, fator de correção).
+  // Memoizado: só recalcula quando os campos do gráfico ou as configs de sensores mudam.
+  const seriesMeta = useMemo(
+    () => fields.map((field, idx) => {
+      const cfg = sensorConfigsMap[field] || {};
+      return {
+        field,
+        descricao: cfg.descricao || field,
+        unidade: cfg.unidade || '',
+        minLimit: Number(cfg.minLimit) || 0,
+        maxLimit: Number(cfg.maxLimit) || 0,
+        cor: cfg.cor || FALLBACK_COLORS[idx % FALLBACK_COLORS.length],
+        fatorCorrecao: Number(cfg.fatorCorrecao) || 1.0,
+      };
+    }),
+    [fields, sensorConfigsMap]
+  );
 
-  const chartTitle = seriesMeta.map((s) => s.descricao).join(' + ') || chart.title;
+  const chartTitle = useMemo(
+    () => seriesMeta.map((s) => s.descricao).join(' + ') || chart.title,
+    [seriesMeta, chart.title]
+  );
 
   const toggleFieldVisibility = (field) => {
     setHiddenFields((prev) =>
@@ -174,40 +195,34 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
 
   const fetchData = async () => {
     try {
-      const results = await Promise.all(
-        seriesMeta.map(async (s) => {
-          let url = `http://192.168.15.108:5000/api/influx/metric?field=${s.field}`;
-          if (customDates?.startDate && customDates?.endDate) {
-            url += `&startDate=${encodeURIComponent(customDates.startDate)}&endDate=${encodeURIComponent(customDates.endDate)}`;
-          } else {
-            url += `&range=${timeRange}`;
-          }
-          const response = await fetch(url);
-          const result = await response.json();
-          return { field: s.field, points: Array.isArray(result) ? result : [] };
-        })
-      );
+      const fieldsParam = seriesMeta.map((s) => s.field).join(',');
+      if (!fieldsParam) { setLoading(false); return; }
 
-      // Junta os pontos de todas as variáveis por timestamp num único array,
-      // aplicando o fator de correção de cada uma.
-      const merged = new Map();
-      results.forEach(({ field, points }) => {
-        const meta = seriesMeta.find((s) => s.field === field);
-        points.forEach((pt) => {
-          const key = pt.timestamp;
-          const value = Number((pt.value * meta.fatorCorrecao).toFixed(2));
-          if (!merged.has(key)) {
-            merged.set(key, { timestamp: pt.timestamp, time: pt.time });
+      let url = `http://192.168.15.108:5000/api/influx/metrics?fields=${encodeURIComponent(fieldsParam)}`;
+      if (customDates?.startDate && customDates?.endDate) {
+        url += `&startDate=${encodeURIComponent(customDates.startDate)}&endDate=${encodeURIComponent(customDates.endDate)}`;
+      } else {
+        url += `&range=${timeRange}`;
+      }
+
+      const response = await fetch(url);
+      const result = await response.json();
+      const points = Array.isArray(result) ? result : [];
+
+      const processed = points.map((pt) => {
+        const row = { timestamp: pt.timestamp, time: pt.time };
+        seriesMeta.forEach((s) => {
+          if (pt[s.field] !== undefined && pt[s.field] !== null) {
+            row[s.field] = Number((pt[s.field] * s.fatorCorrecao).toFixed(2));
           }
-          merged.get(key)[field] = value;
         });
+        return row;
       });
 
-      const mergedArray = Array.from(merged.values()).sort((a, b) => a.timestamp - b.timestamp);
-      setData(mergedArray);
+      setData(processed);
 
-      if (mergedArray.length > 0) {
-        const lastPoint = mergedArray[mergedArray.length - 1];
+      if (processed.length > 0) {
+        const lastPoint = processed[processed.length - 1];
         let anyOutOfRange = false;
 
         seriesMeta.forEach((s) => {
@@ -238,7 +253,7 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
     const interval = setInterval(fetchData, refreshInterval);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart.id, JSON.stringify(fields), timeRange, customDates, refreshInterval, isMuted, JSON.stringify(sensorConfigsMap)]);
+  }, [chart.id, seriesMeta, timeRange, customDates, refreshInterval, isMuted]);
 
   const lastRow = data.length > 0 ? data[data.length - 1] : null;
   const isOutOfRange = lastRow
@@ -248,19 +263,30 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
       })
     : false;
 
-  const visibleSeriesMeta = seriesMeta.filter((s) => !hiddenFields.includes(s.field));
+  const visibleSeriesMeta = useMemo(
+    () => seriesMeta.filter((s) => !hiddenFields.includes(s.field)),
+    [seriesMeta, hiddenFields]
+  );
 
-  const getDomainY = () => {
+  // Domínio do eixo Y memoizado — só recalcula quando os dados, as séries visíveis
+  // ou os limites configurados realmente mudam (não a cada re-render do componente).
+  const domainY = useMemo(() => {
     const relevantSeries = visibleSeriesMeta.length > 0 ? visibleSeriesMeta : seriesMeta;
-    const allValues = data.flatMap((row) => relevantSeries.map((s) => row[s.field]).filter((v) => v !== undefined));
-    const limitValues = isSingleField ? [seriesMeta[0].minLimit, seriesMeta[0].maxLimit] : [];
-    const combined = [...allValues, ...limitValues];
-    if (combined.length === 0) return ['auto', 'auto'];
-    const minVal = Math.min(...combined);
-    const maxVal = Math.max(...combined);
+    const allValues = [];
+    for (const row of data) {
+      for (const s of relevantSeries) {
+        const v = row[s.field];
+        if (v !== undefined) allValues.push(v);
+      }
+    }
+    if (isSingleField) {
+      allValues.push(seriesMeta[0].minLimit, seriesMeta[0].maxLimit);
+    }
+    if (allValues.length === 0) return ['auto', 'auto'];
+    const [minVal, maxVal] = minMax(allValues);
     const padding = (maxVal - minVal) * 0.2 || 10;
     return [Math.floor(minVal - padding), Math.ceil(maxVal + padding)];
-  };
+  }, [data, visibleSeriesMeta, seriesMeta, isSingleField]);
 
   const formatXTick = (tickItem) => {
     if (!tickItem) return '';
@@ -392,7 +418,7 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
                 fontSize={9}
               />
 
-              <YAxis stroke="#94a3b8" fontSize={9} domain={getDomainY()} unit={isSingleField ? seriesMeta[0].unidade : ''} />
+              <YAxis stroke="#94a3b8" fontSize={9} domain={domainY} unit={isSingleField ? seriesMeta[0].unidade : ''} />
 
               <Tooltip
                 labelFormatter={(value) => new Date(value).toLocaleString('pt-BR')}
@@ -435,3 +461,5 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
     </div>
   );
 }
+
+export default React.memo(ChartCard);
