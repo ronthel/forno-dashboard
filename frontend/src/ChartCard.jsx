@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Download, FileText } from 'lucide-react';
+import { Trash2, Download, FileText, ZoomOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import {
   ResponsiveContainer,
@@ -8,9 +8,9 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   CartesianGrid,
-  ReferenceLine
+  ReferenceLine,
+  ReferenceArea
 } from 'recharts';
 
 // Paleta de cores usada como fallback para variáveis sem cor configurada
@@ -126,12 +126,27 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
   const [loading, setLoading] = useState(true);
   const [sensorConfigsMap, setSensorConfigsMap] = useState({});
 
+  // Controle de "penas" (séries) ligadas/desligadas no gráfico
+  const [hiddenFields, setHiddenFields] = useState([]);
+
+  // Controle de zoom por arrastar seleção no eixo X
+  const [zoomDomain, setZoomDomain] = useState(null); // [inicio, fim] em timestamp, ou null (intervalo completo)
+  const [refAreaLeft, setRefAreaLeft] = useState(null);
+  const [refAreaRight, setRefAreaRight] = useState(null);
+
   useEffect(() => {
     fetch('http://192.168.15.108:5000/api/config/sensores')
       .then((res) => res.json())
       .then((configs) => setSensorConfigsMap(configs || {}))
       .catch((err) => console.error('Erro ao buscar config:', err));
   }, [chart.id]);
+
+  // Sempre que o intervalo de tempo do dashboard muda, o zoom manual perde o sentido — reseta.
+  useEffect(() => {
+    setZoomDomain(null);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  }, [timeRange, customDates]);
 
   // Metadados de cada variável do gráfico (descrição, unidade, limites, cor, fator de correção)
   const seriesMeta = fields.map((field, idx) => {
@@ -148,6 +163,12 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
   });
 
   const chartTitle = seriesMeta.map((s) => s.descricao).join(' + ') || chart.title;
+
+  const toggleFieldVisibility = (field) => {
+    setHiddenFields((prev) =>
+      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
+    );
+  };
 
   const alarmDispatchedRef = useRef({});
 
@@ -227,8 +248,11 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
       })
     : false;
 
+  const visibleSeriesMeta = seriesMeta.filter((s) => !hiddenFields.includes(s.field));
+
   const getDomainY = () => {
-    const allValues = data.flatMap((row) => seriesMeta.map((s) => row[s.field]).filter((v) => v !== undefined));
+    const relevantSeries = visibleSeriesMeta.length > 0 ? visibleSeriesMeta : seriesMeta;
+    const allValues = data.flatMap((row) => relevantSeries.map((s) => row[s.field]).filter((v) => v !== undefined));
     const limitValues = isSingleField ? [seriesMeta[0].minLimit, seriesMeta[0].maxLimit] : [];
     const combined = [...allValues, ...limitValues];
     if (combined.length === 0) return ['auto', 'auto'];
@@ -248,6 +272,38 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
     });
   };
 
+  // --- Zoom por arrastar seleção no eixo X ---
+  const handleMouseDown = (e) => {
+    if (e && e.activeLabel !== undefined && e.activeLabel !== null) {
+      setRefAreaLeft(e.activeLabel);
+      setRefAreaRight(e.activeLabel);
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (refAreaLeft !== null && e && e.activeLabel !== undefined && e.activeLabel !== null) {
+      setRefAreaRight(e.activeLabel);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (refAreaLeft === null || refAreaRight === null || refAreaLeft === refAreaRight) {
+      setRefAreaLeft(null);
+      setRefAreaRight(null);
+      return;
+    }
+    const [left, right] = refAreaLeft < refAreaRight ? [refAreaLeft, refAreaRight] : [refAreaRight, refAreaLeft];
+    setZoomDomain([left, right]);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  };
+
+  const resetZoom = () => {
+    setZoomDomain(null);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  };
+
   return (
     <div className={`bg-slate-800 border rounded-lg p-3 shadow-lg flex flex-col justify-between h-full w-full transition-all ${isOutOfRange ? 'border-red-500/80 bg-red-950/30 ring-2 ring-red-500/50' : 'border-slate-700'}`}>
       <div className="flex justify-between items-start mb-2">
@@ -258,8 +314,9 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
               {seriesMeta.map((s) => {
                 const v = lastRow[s.field];
                 const out = v !== undefined && (v > s.maxLimit || v < s.minLimit);
+                const isHidden = hiddenFields.includes(s.field);
                 return (
-                  <span key={s.field}>
+                  <span key={s.field} className={isHidden ? 'opacity-40' : ''}>
                     {isSingleField ? 'Valor atual: ' : `${s.descricao}: `}
                     <span className={`font-mono font-bold text-xs ${out ? 'text-red-400' : 'text-amber-400'}`}>
                       {v !== undefined ? v : '--'} {s.unidade}
@@ -271,6 +328,11 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
           )}
         </div>
         <div className="flex items-center gap-1">
+          {zoomDomain && (
+            <button onClick={resetZoom} className="text-slate-400 hover:text-amber-400 p-1" title="Resetar Zoom">
+              <ZoomOut size={14} />
+            </button>
+          )}
           <button onClick={() => exportToCSV(chartTitle, data, seriesMeta)} className="text-slate-400 hover:text-emerald-400 p-1" title="Exportar CSV"><Download size={14} /></button>
           <button onClick={() => exportToPDF(chartTitle, data, seriesMeta)} className="text-slate-400 hover:text-amber-400 p-1" title="Exportar PDF"><FileText size={14} /></button>
           <button onClick={() => onRemove(chart.id)} className="text-slate-400 hover:text-red-400 p-1" title="Remover Gráfico"><Trash2 size={14} /></button>
@@ -284,17 +346,47 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
         </div>
       )}
 
-      <div className="flex-1 w-full bg-slate-900/50 rounded p-1 border border-slate-700/50 min-h-[140px]">
+      {/* Chips de habilitar/desabilitar "penas" (séries) */}
+      <div className="flex flex-wrap gap-1.5 mb-1.5">
+        {seriesMeta.map((s) => {
+          const isHidden = hiddenFields.includes(s.field);
+          return (
+            <button
+              key={s.field}
+              type="button"
+              onClick={() => toggleFieldVisibility(s.field)}
+              title={isHidden ? 'Clique para exibir esta variável' : 'Clique para ocultar esta variável'}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium transition ${
+                isHidden
+                  ? 'border-slate-700 text-slate-500 bg-slate-900/40 line-through'
+                  : 'border-slate-600 text-slate-200 bg-slate-900/60'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isHidden ? '#475569' : s.cor }} />
+              {s.descricao}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1 w-full bg-slate-900/50 rounded p-1 border border-slate-700/50 min-h-[140px] select-none">
         {!loading && (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
+            <LineChart
+              data={data}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              style={{ cursor: 'crosshair' }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
 
               <XAxis
                 dataKey="timestamp"
                 type="number"
                 scale="time"
-                domain={['dataMin', 'dataMax']}
+                domain={zoomDomain || ['dataMin', 'dataMax']}
+                allowDataOverflow
                 tickFormatter={formatXTick}
                 stroke="#94a3b8"
                 fontSize={9}
@@ -310,8 +402,6 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
                 }}
                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '11px' }}
               />
-
-              {!isSingleField && <Legend wrapperStyle={{ fontSize: '10px' }} formatter={(value) => seriesMeta.find((s) => s.field === value)?.descricao || value} />}
 
               {isSingleField && (
                 <>
@@ -330,8 +420,14 @@ export default function ChartCard({ chart, timeRange, customDates, refreshInterv
                   strokeWidth={2}
                   dot={false}
                   connectNulls
+                  hide={hiddenFields.includes(s.field)}
+                  isAnimationActive={false}
                 />
               ))}
+
+              {refAreaLeft !== null && refAreaRight !== null && (
+                <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.4} fill="#f59e0b" fillOpacity={0.15} />
+              )}
             </LineChart>
           </ResponsiveContainer>
         )}
