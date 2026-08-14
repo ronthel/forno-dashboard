@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
 const { InfluxDBClient } = require('@influxdata/influxdb3-client');
 require('dotenv').config();
 
@@ -10,23 +9,23 @@ app.use(cors());
 app.use(express.json());
 
 // Configuração do Cliente InfluxDB 3
+// Sem token hardcoded como fallback — se INFLUX_TOKEN não estiver no .env,
+// o app deve falhar de forma visível em vez de usar uma credencial escrita no código.
 const hostUrl = process.env.INFLUX_URL || 'http://localhost:8181';
 const formattedHost = hostUrl.startsWith('http') ? hostUrl : `http://${hostUrl}`;
 
+if (!process.env.INFLUX_TOKEN) {
+  console.warn('[Aviso] INFLUX_TOKEN não definido no .env — as consultas ao InfluxDB vão falhar até isso ser configurado.');
+}
+
 const influxDB = new InfluxDBClient({
   host: formattedHost,
-  token: process.env.INFLUX_TOKEN || 'apiv3_z5n3x48K8Gxu5-8aUoVtEwgy-Nrf1c_RGcjXX9EkZ4twxkcrNMSi9PIldyNLWF8u4K-K4KJzcb48QwSYoHcpzg',
+  token: process.env.INFLUX_TOKEN,
   database: process.env.INFLUX_BUCKET || 'forno'
 });
 
-// Configuração de Conexão com o PostgreSQL
-const db = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || 'admin123',
-  database: process.env.POSTGRES_DB || 'forno_db',
-  port: process.env.POSTGRES_PORT || 5432,
-});
+// Conexão única com o PostgreSQL, compartilhada com routes/auth.js (ver db.js)
+const db = require('./db');
 
 // Criar tabelas no PostgreSQL ao iniciar
 async function initPostgres() {
@@ -77,6 +76,10 @@ initPostgres();
 // Importação das rotas do InfluxDB
 const influxRoutes = require('./routes/influx');
 app.use('/api/influx', influxRoutes);
+
+// Importação das rotas de autenticação (login, registro)
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // --- ROTAS DO LAYOUT (POSTGRESQL) ---
 app.get('/api/dashboard/layout', async (req, res) => {

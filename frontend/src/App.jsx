@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown } from 'lucide-react';
 import ChartCard from './ChartCard';
 import Login from './Login';
+import UserSwitchModal from './UserSwitchModal';
 import AlarmModal from './AlarmModal';
 import OeeView from './OeeView';
 import ConfigView from './ConfigView';
@@ -14,6 +15,10 @@ export default function App() {
 
   const [currentUser, setCurrentUser] = useState(() => {
     return localStorage.getItem('currentUser') || 'Operador';
+  });
+
+  const [currentUserRole, setCurrentUserRole] = useState(() => {
+    return localStorage.getItem('currentUserRole') || '';
   });
 
   const [isServerDown, setIsServerDown] = useState(false);
@@ -37,6 +42,7 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState('dashboard');
   const [isFieldPickerOpen, setIsFieldPickerOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
   const [oeeMetricsData, setOeeMetricsData] = useState({
     runTimeSec: 0,
@@ -152,18 +158,30 @@ export default function App() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const handleLoginSuccess = (username) => {
+  const handleLoginSuccess = (username, token, role) => {
     const userToSave = username || 'Operador';
+    const roleToSave = role || '';
     setIsAuthenticated(true);
     setCurrentUser(userToSave);
+    setCurrentUserRole(roleToSave);
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('currentUser', userToSave);
+    localStorage.setItem('currentUserRole', roleToSave);
+    if (token) localStorage.setItem('authToken', token);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setCurrentUserRole('');
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('currentUserRole');
+    localStorage.removeItem('authToken');
+  };
+
+  // Troca de usuário: mesmo fluxo do login, só que sem sair da tela atual do dashboard.
+  const handleSwitchUser = (username, token, role) => {
+    handleLoginSuccess(username, token, role);
   };
 
   const handleApplyCustomDates = (e) => {
@@ -430,12 +448,16 @@ export default function App() {
             </form>
 
             <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded pl-2 pr-1 py-1">
-              <div className="flex items-center gap-1 text-xs text-slate-300">
+              <button
+                onClick={() => setIsUserModalOpen(true)}
+                title="Trocar usuário, criar usuário ou sair"
+                className="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-400 transition"
+              >
                 <User size={13} className="text-amber-500" />
                 <span className="font-medium max-w-[80px] truncate" title={currentUser}>
                   {currentUser}
                 </span>
-              </div>
+              </button>
               <button
                 onClick={handleLogout}
                 title="Sair"
@@ -545,6 +567,15 @@ export default function App() {
       <AlarmModal
         isOpen={isAlarmModalOpen}
         onClose={() => setIsAlarmModalOpen(false)}
+      />
+
+      <UserSwitchModal
+        isOpen={isUserModalOpen}
+        onClose={() => setIsUserModalOpen(false)}
+        onSwitchUser={handleSwitchUser}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+        currentUserRole={currentUserRole}
       />
     </div>
   );

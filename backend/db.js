@@ -1,15 +1,22 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Conexão única com o PostgreSQL, compartilhada por todo o backend
+// (server.js e routes/auth.js). Antes existiam duas conexões separadas
+// com nomes de variável diferentes (POSTGRES_* e PG_*) — unificado aqui.
+//
+// Sem valores hardcoded como fallback: se as variáveis de ambiente não
+// estiverem definidas no .env, a aplicação deve falhar de forma visível
+// em vez de silenciosamente usar uma senha padrão.
 const pool = new Pool({
-  user: process.env.PG_USER,
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE,
-  password: process.env.PG_PASSWORD,
-  port: process.env.PG_PORT,
+  host: process.env.POSTGRES_HOST || 'localhost',
+  user: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD,
+  database: process.env.POSTGRES_DB || 'forno_db',
+  port: process.env.POSTGRES_PORT || 5432,
 });
 
-// Inicializa tabelas
+// Inicializa tabelas de usuários/autenticação
 const initDb = async () => {
   const queryText = `
     CREATE TABLE IF NOT EXISTS users (
@@ -28,9 +35,9 @@ const initDb = async () => {
   `;
   try {
     await pool.query(queryText);
-    console.log('Tabelas inicializadas no PostgreSQL.');
+    console.log('[PostgreSQL] Tabelas de usuários prontas.');
   } catch (err) {
-    console.error('Erro ao inicializar PostgreSQL:', err);
+    console.error('[PostgreSQL] Erro ao inicializar tabelas de usuários:', err.message);
   }
 };
 
