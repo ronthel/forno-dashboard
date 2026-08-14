@@ -98,9 +98,13 @@ export default function SensorConfigView({ onBack }) {
     };
     
     try {
+      const token = localStorage.getItem('authToken');
       const res = await fetch('http://192.168.15.108:5000/api/config/sensores', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify(updated)
       });
 
@@ -109,6 +113,8 @@ export default function SensorConfigView({ onBack }) {
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
         await fetchConfig();
+      } else {
+        console.error('Erro ao salvar sensor: sem permissão ou sessão expirada.');
       }
     } catch (err) {
       console.error('Erro ao salvar no banco:', err);

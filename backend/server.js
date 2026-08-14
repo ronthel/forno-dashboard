@@ -1,7 +1,30 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { InfluxDBClient } = require('@influxdata/influxdb3-client');
 require('dotenv').config();
+
+// Middleware: exige um token de login válido pertencente a um usuário com um
+// dos perfis permitidos. Usado para proteger as rotas que ALTERAM configurações
+// (turnos, sensores) — as rotas de leitura continuam abertas para qualquer
+// usuário logado, pois o dashboard principal depende delas.
+const requireRole = (allowedRoles) => (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ error: 'Login necessário para esta ação.' });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!allowedRoles.includes(decoded.role)) {
+      return res.status(403).json({ error: 'Você não tem permissão para esta ação.' });
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
+  }
+};
 
 // Inicialização do Express
 const app = express();
@@ -126,7 +149,7 @@ app.get('/api/config/turnos', async (req, res) => {
   }
 });
 
-app.post('/api/config/turnos', async (req, res) => {
+app.post('/api/config/turnos', requireRole(['supervisor', 'administrador']), async (req, res) => {
   try {
     const turnos = req.body;
     for (const [key, val] of Object.entries(turnos)) {
@@ -168,7 +191,7 @@ app.get('/api/config/sensores', async (req, res) => {
   }
 });
 
-app.post('/api/config/sensores', async (req, res) => {
+app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), async (req, res) => {
   try {
     const sensores = req.body;
     for (const [key, val] of Object.entries(sensores)) {

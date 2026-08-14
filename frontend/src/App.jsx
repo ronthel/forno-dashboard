@@ -209,6 +209,19 @@ export default function App() {
     setCharts((prevCharts) => prevCharts.filter((chart) => chart.id !== id));
   }, []);
 
+  // Telas de configuração (Turnos e Variáveis) são restritas a Supervisor e Administrador.
+  const canConfig = currentUserRole === 'supervisor' || currentUserRole === 'administrador';
+
+  // Defesa extra: se por algum motivo o estado cair numa tela restrita sem
+  // permissão (ex.: troca de usuário para um perfil sem acesso enquanto a
+  // tela já estava aberta), volta para o dashboard automaticamente.
+  useEffect(() => {
+    const restrictedViews = ['configTurnos', 'configSensores'];
+    if (restrictedViews.includes(currentView) && !canConfig) {
+      setCurrentView('dashboard');
+    }
+  }, [currentView, canConfig]);
+
   if (!isAuthenticated || isServerDown) {
     return (
       <Login
@@ -224,17 +237,18 @@ export default function App() {
         onBack={() => setCurrentView('dashboard')}
         onOpenConfig={() => setCurrentView('configTurnos')}
         oeeData={oeeMetricsData}
+        canConfig={canConfig}
       />
     );
   }
 
-  if (currentView === 'configTurnos') {
+  if (currentView === 'configTurnos' && canConfig) {
     return <ConfigView onBack={() => setCurrentView('dashboard')} />;
   }
 
-  if (currentView === 'configSensores') {
+  if (currentView === 'configSensores' && canConfig) {
     return (
-      <SensorConfigView 
+      <SensorConfigView
         onBack={() => {
           setCurrentView('dashboard');
           loadInitialLayout();
@@ -318,19 +332,23 @@ export default function App() {
               <Gauge size={14} /> Relatório OEE
             </button>
 
-            <button
-              onClick={() => setCurrentView('configTurnos')}
-              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
-            >
-              <Settings size={14} className="text-amber-400" /> Turnos
-            </button>
+            {canConfig && (
+              <button
+                onClick={() => setCurrentView('configTurnos')}
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
+              >
+                <Settings size={14} className="text-amber-400" /> Turnos
+              </button>
+            )}
 
-            <button
-              onClick={() => setCurrentView('configSensores')}
-              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
-            >
-              <Sliders size={14} className="text-amber-400" /> Variáveis
-            </button>
+            {canConfig && (
+              <button
+                onClick={() => setCurrentView('configSensores')}
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
+              >
+                <Sliders size={14} className="text-amber-400" /> Variáveis
+              </button>
+            )}
 
             <button
               onClick={() => setIsMuted(!isMuted)}

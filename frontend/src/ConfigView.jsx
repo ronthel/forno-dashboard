@@ -34,15 +34,21 @@ export default function ConfigView({ onBack }) {
 
   const handleSave = (e) => {
     e.preventDefault();
+    const token = localStorage.getItem('authToken');
     fetch('http://192.168.15.108:5000/api/config/turnos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(turnosConfig)
     })
       .then((res) => {
         if (res.ok) {
           setSavedSuccess(true);
           setTimeout(() => setSavedSuccess(false), 3000);
+        } else {
+          console.error('Erro ao salvar turnos: sem permissão ou sessão expirada.');
         }
       })
       .catch((err) => console.error('Erro ao salvar turnos no banco:', err));

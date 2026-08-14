@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Gauge, Home, Activity, CheckCircle, Clock, Database, TrendingUp, TrendingDown, Settings } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 
-export default function OeeView({ onBack, onOpenConfig, oeeData }) {
+export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
   const [historyData, setHistoryData] = useState([]);
   const [selectedTurno, setSelectedTurno] = useState('atual'); // 'atual' (Turno B), 'turnoA', 'turnoC'
 
@@ -113,13 +113,15 @@ export default function OeeView({ onBack, onOpenConfig, oeeData }) {
             </button>
           </div>
 
-          <button
-            onClick={onOpenConfig}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
-            title="Configurar Horários e Metas"
-          >
-            <Settings size={16} /> Configurar
-          </button>
+          {canConfig && (
+            <button
+              onClick={onOpenConfig}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
+              title="Configurar Horários e Metas"
+            >
+              <Settings size={16} /> Configurar
+            </button>
+          )}
         </div>
 
         {/* Variáveis Brutas PLC */}
