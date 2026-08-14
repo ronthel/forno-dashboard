@@ -13,6 +13,36 @@ const influxDB = new InfluxDBClient({
 
 const VALID_FIELDS = ["CTC", "CTP01", "CTP02", "CTP03", "CTP04", "CTP05", "CTP06", "CTQ", "CTV", "teste","RUN_TIME_SEC", "TOTAL_COUNT", "GOOD_COUNT", "ALARM_COUNT"];
 
+const RANGE_TO_INTERVAL = {
+  '1h': '1 hour',
+  '8h': '8 hours',
+  '24h': '24 hours',
+  '7d': '7 days'
+};
+
+// Monta a cláusula WHERE de intervalo de tempo, usada tanto por /metric quanto
+// por /metrics — antes essa lógica estava duplicada (copiada e colada) nas
+// duas rotas.
+//
+// Lança um erro com mensagem amigável e statusCode 400 se startDate/endDate
+// vierem inválidos, em vez de deixar o "new Date(...).toISOString()" estourar
+// um erro não tratado fora do try/catch da rota.
+function buildWhereClause({ range, startDate, endDate }) {
+  if (startDate && endDate) {
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    if (Number.isNaN(startDateObj.getTime()) || Number.isNaN(endDateObj.getTime())) {
+      const err = new Error('Data inicial ou final inválida.');
+      err.statusCode = 400;
+      throw err;
+    }
+    return `WHERE time >= '${startDateObj.toISOString()}' AND time <= '${endDateObj.toISOString()}'`;
+  }
+
+  const selectedInterval = RANGE_TO_INTERVAL[range] || RANGE_TO_INTERVAL['1h'];
+  return `WHERE time >= NOW() - INTERVAL '${selectedInterval}'`;
+}
+
 router.get('/fields', (req, res) => {
   res.json(VALID_FIELDS);
 });
@@ -25,27 +55,17 @@ router.get('/metric', async (req, res) => {
     return res.json([]);
   }
 
-  let whereClause = "";
-
-  if (startDate && endDate) {
-    const startIso = new Date(startDate).toISOString();
-    const endIso = new Date(endDate).toISOString();
-    whereClause = `WHERE time >= '${startIso}' AND time <= '${endIso}'`;
-  } else {
-    const rangeMap = {
-      '1h': "1 hour",
-      '8h': "8 hours",
-      '24h': "24 hours",
-      '7d': "7 days"
-    };
-    const selectedInterval = rangeMap[range] || "1 hour";
-    whereClause = `WHERE time >= NOW() - INTERVAL '${selectedInterval}'`;
+  let whereClause;
+  try {
+    whereClause = buildWhereClause({ range, startDate, endDate });
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ error: err.message });
   }
 
   const sqlQuery = `
-    SELECT time, "${targetField}" 
-    FROM "Variaveis" 
-    ${whereClause} 
+    SELECT time, "${targetField}"
+    FROM "Variaveis"
+    ${whereClause}
     ORDER BY time ASC
   `;
 
@@ -56,7 +76,7 @@ router.get('/metric', async (req, res) => {
     for await (const row of reader) {
       if (row[targetField] !== undefined && row[targetField] !== null) {
         const dateObj = new Date(row.time);
-        
+
         data.push({
           timestamp: dateObj.getTime(), // Retorna o valor em milissegundos para escala do Recharts
           time: dateObj.toLocaleString('pt-BR', {
@@ -73,8 +93,11 @@ router.get('/metric', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    // Detalhe completo do erro só vai para o log do servidor — o cliente
+    // recebe uma mensagem genérica, sem vazar detalhes internos (nome de
+    // tabela, driver, etc.).
     console.error(`Erro ao consultar "${targetField}":`, err.message);
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: 'Erro ao consultar dados no InfluxDB. Tente novamente em instantes.' });
   }
 });
 
@@ -89,21 +112,11 @@ router.get('/metrics', async (req, res) => {
     return res.json([]);
   }
 
-  let whereClause = "";
-
-  if (startDate && endDate) {
-    const startIso = new Date(startDate).toISOString();
-    const endIso = new Date(endDate).toISOString();
-    whereClause = `WHERE time >= '${startIso}' AND time <= '${endIso}'`;
-  } else {
-    const rangeMap = {
-      '1h': "1 hour",
-      '8h': "8 hours",
-      '24h': "24 hours",
-      '7d': "7 days"
-    };
-    const selectedInterval = rangeMap[range] || "1 hour";
-    whereClause = `WHERE time >= NOW() - INTERVAL '${selectedInterval}'`;
+  let whereClause;
+  try {
+    whereClause = buildWhereClause({ range, startDate, endDate });
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ error: err.message });
   }
 
   const columns = validFields.map((f) => `"${f}"`).join(', ');
@@ -144,8 +157,10 @@ router.get('/metrics', async (req, res) => {
 
     res.json(data);
   } catch (err) {
+    // Detalhe completo do erro só vai para o log do servidor — o cliente
+    // recebe uma mensagem genérica, sem vazar detalhes internos.
     console.error(`Erro ao consultar múltiplos campos [${validFields.join(', ')}]:`, err.message);
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: 'Erro ao consultar dados no InfluxDB. Tente novamente em instantes.' });
   }
 });
 

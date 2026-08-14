@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api, { isOk } from './api';
 import { Home, Save, Settings, Clock, Target, Check } from 'lucide-react';
 
 export default function ConfigView({ onBack }) {
@@ -12,8 +13,8 @@ export default function ConfigView({ onBack }) {
 
   // Carregar do PostgreSQL ao abrir
   useEffect(() => {
-    fetch('http://192.168.15.108:5000/api/config/turnos')
-      .then((res) => res.json())
+    api.get('/api/config/turnos')
+      .then((res) => res.data)
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
           setTurnosConfig(data);
@@ -34,17 +35,9 @@ export default function ConfigView({ onBack }) {
 
   const handleSave = (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('authToken');
-    fetch('http://192.168.15.108:5000/api/config/turnos', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify(turnosConfig)
-    })
+    api.post('/api/config/turnos', turnosConfig)
       .then((res) => {
-        if (res.ok) {
+        if (isOk(res)) {
           setSavedSuccess(true);
           setTimeout(() => setSavedSuccess(false), 3000);
         } else {

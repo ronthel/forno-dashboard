@@ -6,7 +6,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@influxdata/influxdb-client": "^1.33.0",
     "@influxdata/influxdb3-client": "^2.3.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

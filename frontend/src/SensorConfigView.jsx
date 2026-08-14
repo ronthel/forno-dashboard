@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import api, { isOk } from './api';
 import { Home, Save, Sliders, Database, Check, Layers, Palette } from 'lucide-react';
 
 export default function SensorConfigView({ onBack }) {
@@ -21,12 +22,12 @@ export default function SensorConfigView({ onBack }) {
   const fetchConfig = useCallback(async () => {
     try {
       const [fieldsRes, configsRes] = await Promise.all([
-        fetch('http://192.168.15.108:5000/api/influx/fields').catch(() => null),
-        fetch('http://192.168.15.108:5000/api/config/sensores').catch(() => null)
+        api.get('/api/influx/fields').catch(() => null),
+        api.get('/api/config/sensores').catch(() => null)
       ]);
-      
-      const fieldsData = fieldsRes && fieldsRes.ok ? await fieldsRes.json() : [];
-      const configsData = configsRes && configsRes.ok ? await configsRes.json() : {};
+
+      const fieldsData = fieldsRes && isOk(fieldsRes) ? fieldsRes.data : [];
+      const configsData = configsRes && isOk(configsRes) ? configsRes.data : {};
 
       let fields = Array.isArray(fieldsData) ? fieldsData : [];
       const configs = configsData || {};
@@ -98,17 +99,9 @@ export default function SensorConfigView({ onBack }) {
     };
     
     try {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch('http://192.168.15.108:5000/api/config/sensores', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(updated)
-      });
+      const res = await api.post('/api/config/sensores', updated);
 
-      if (res.ok) {
+      if (isOk(res)) {
         setSensorConfigs(updated);
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);

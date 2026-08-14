@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import api, { isOk } from './api';
 import { X, LogIn, LogOut, UserPlus, AlertCircle } from 'lucide-react';
 
 export default function UserSwitchModal({ isOpen, onClose, onSwitchUser, onLogout, currentUser, currentUserRole }) {
@@ -27,13 +28,9 @@ export default function UserSwitchModal({ isOpen, onClose, onSwitchUser, onLogou
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('http://192.168.15.108:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if (!res.ok) {
+      const res = await api.post('/api/auth/login', { username, password });
+      const data = res.data;
+      if (!isOk(res)) {
         setError(data.error || 'Não foi possível entrar com esse usuário.');
         return;
       }
@@ -52,17 +49,9 @@ export default function UserSwitchModal({ isOpen, onClose, onSwitchUser, onLogou
     setInfo('');
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch('http://192.168.15.108:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ username, password, role })
-      });
-      const data = await res.json();
-      if (!res.ok) {
+      const res = await api.post('/api/auth/register', { username, password, role });
+      const data = res.data;
+      if (!isOk(res)) {
         setError(data.error || 'Não foi possível criar o usuário.');
         return;
       }

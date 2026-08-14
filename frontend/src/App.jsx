@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown } from 'lucide-react';
+import api, { isOk } from './api';
 import ChartCard from './ChartCard';
 import Login from './Login';
 import UserSwitchModal from './UserSwitchModal';
@@ -63,9 +64,9 @@ export default function App() {
 
   const fetchOeeMetricsFromDb = async () => {
     try {
-      const res = await fetch('http://192.168.15.108:5000/api/oee/metrics');
-      if (res.ok) {
-        const data = await res.json();
+      const res = await api.get('/api/oee/metrics');
+      if (isOk(res)) {
+        const data = res.data;
         setOeeMetricsData({
           runTimeSec: data.runTimeSec || 0,
           totalCount: data.totalCount || 0,
@@ -87,18 +88,18 @@ export default function App() {
     try {
       let configs = {};
       try {
-        const configRes = await fetch('http://192.168.15.108:5000/api/config/sensores');
-        if (configRes.ok) {
-          configs = await configRes.json();
+        const configRes = await api.get('/api/config/sensores');
+        if (isOk(configRes)) {
+          configs = configRes.data;
           setSensorConfigs(configs);
         }
       } catch (err) {
         console.error('Erro ao buscar configs de sensores:', err);
       }
 
-      const res = await fetch('http://192.168.15.108:5000/api/dashboard/layout');
-      if (res.ok) {
-        const savedCharts = await res.json();
+      const res = await api.get('/api/dashboard/layout');
+      if (isOk(res)) {
+        const savedCharts = res.data;
         if (Array.isArray(savedCharts) && savedCharts.length > 0) {
           // Compatibilidade com layouts antigos salvos com "field" (string única)
           // em vez de "fields" (array) — normaliza para o novo formato.
@@ -115,9 +116,9 @@ export default function App() {
         }
       }
 
-      const fieldsRes = await fetch('http://192.168.15.108:5000/api/influx/fields');
-      if (fieldsRes.ok) {
-        const fieldsData = await fieldsRes.json();
+      const fieldsRes = await api.get('/api/influx/fields');
+      if (isOk(fieldsRes)) {
+        const fieldsData = fieldsRes.data;
         if (Array.isArray(fieldsData) && fieldsData.length > 0) {
           setAvailableFields(fieldsData);
           setSelectedFields([fieldsData[0]]);
@@ -259,13 +260,9 @@ export default function App() {
 
   const handleSaveLayout = async () => {
     try {
-      const response = await fetch('http://192.168.15.108:5000/api/dashboard/layout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ charts })
-      });
+      const response = await api.post('/api/dashboard/layout', { charts });
 
-      if (response.ok) {
+      if (isOk(response)) {
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
       }

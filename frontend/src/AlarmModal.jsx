@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from './api';
 import { X, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function AlarmModal({ isOpen, onClose }) {
@@ -8,8 +9,8 @@ export default function AlarmModal({ isOpen, onClose }) {
   const fetchAlarms = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://192.168.15.108:5000/api/alarms');
-      const data = await res.json();
+      const res = await api.get('/api/alarms');
+      const data = res.data;
       if (Array.isArray(data)) {
         setAlarms(data);
       }

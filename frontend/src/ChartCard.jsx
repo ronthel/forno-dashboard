@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Trash2, Download, FileText, ZoomOut } from 'lucide-react';
+import api, { isOk } from './api';
+import { Trash2, Download, FileText, ZoomOut, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   ResponsiveContainer,
   LineChart,
@@ -45,7 +47,7 @@ const exportToCSV = (title, data, seriesMeta) => {
   document.body.removeChild(link);
 };
 
-const exportToPDF = (title, data, seriesMeta) => {
+const exportToPDF = (title, data, seriesMeta, chartImage) => {
   if (!data || data.length === 0) return;
   const doc = new jsPDF();
 
@@ -59,6 +61,16 @@ const exportToPDF = (title, data, seriesMeta) => {
   doc.line(14, 38, 196, 38);
 
   let y = 46;
+
+  // Imagem do gráfico (captura visual colorida, como aparece na tela)
+  if (chartImage) {
+    const pageWidth = 182; // 196 - 14 margem esquerda
+    const imgProps = chartImage.imgProps;
+    const imgHeight = (imgProps.height * pageWidth) / imgProps.width;
+    doc.addImage(chartImage.dataUrl, 'PNG', 14, y, pageWidth, imgHeight);
+    y += imgHeight + 10;
+  }
+
   doc.setFontSize(12);
   doc.setTextColor(0);
   doc.text("Resumo Operacional por Variavel:", 14, y);
@@ -84,7 +96,11 @@ const exportToPDF = (title, data, seriesMeta) => {
   y += 8;
   doc.setFontSize(12);
   doc.setTextColor(0);
-  doc.text("Ultimas Medicoes Registradas:", 14, y);
+  doc.text("Amostra de Medicoes ao Longo do Periodo Selecionado:", 14, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text(`Periodo: ${data[0].time}  ate  ${data[data.length - 1].time}  (${data.length} registros no total)`, 14, y);
   y += 8;
 
   doc.setFontSize(8);
@@ -95,7 +111,22 @@ const exportToPDF = (title, data, seriesMeta) => {
   });
   y += 5;
 
-  const sampleData = data.slice(-15);
+  // Amostragem distribuida por todo o periodo selecionado (nao apenas os
+  // ultimos registros), garantindo que o primeiro e o ultimo ponto do
+  // intervalo apareçam no relatorio.
+  const SAMPLE_SIZE = 25;
+  let sampleData;
+  if (data.length <= SAMPLE_SIZE) {
+    sampleData = data;
+  } else {
+    const step = (data.length - 1) / (SAMPLE_SIZE - 1);
+    const indices = new Set();
+    for (let i = 0; i < SAMPLE_SIZE; i++) {
+      indices.add(Math.round(i * step));
+    }
+    sampleData = Array.from(indices).sort((a, b) => a - b).map((idx) => data[idx]);
+  }
+
   sampleData.forEach((row) => {
     doc.setTextColor(0);
     doc.text(String(row.time), 14, y);
@@ -139,6 +170,8 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sensorConfigsMap, setSensorConfigsMap] = useState({});
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const chartContainerRef = useRef(null);
 
   // Controle de "penas" (séries) ligadas/desligadas no gráfico
   const [hiddenFields, setHiddenFields] = useState([]);
@@ -149,9 +182,8 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
   const [refAreaRight, setRefAreaRight] = useState(null);
 
   useEffect(() => {
-    fetch('http://192.168.15.108:5000/api/config/sensores')
-      .then((res) => res.json())
-      .then((configs) => setSensorConfigsMap(configs || {}))
+    api.get('/api/config/sensores')
+      .then((res) => setSensorConfigsMap(res.data || {}))
       .catch((err) => console.error('Erro ao buscar config:', err));
   }, [chart.id]);
 
@@ -198,15 +230,16 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
       const fieldsParam = seriesMeta.map((s) => s.field).join(',');
       if (!fieldsParam) { setLoading(false); return; }
 
-      let url = `http://192.168.15.108:5000/api/influx/metrics?fields=${encodeURIComponent(fieldsParam)}`;
+      const params = { fields: fieldsParam };
       if (customDates?.startDate && customDates?.endDate) {
-        url += `&startDate=${encodeURIComponent(customDates.startDate)}&endDate=${encodeURIComponent(customDates.endDate)}`;
+        params.startDate = customDates.startDate;
+        params.endDate = customDates.endDate;
       } else {
-        url += `&range=${timeRange}`;
+        params.range = timeRange;
       }
 
-      const response = await fetch(url);
-      const result = await response.json();
+      const response = await api.get('/api/influx/metrics', { params });
+      const result = response.data;
       const points = Array.isArray(result) ? result : [];
 
       const processed = points.map((pt) => {
@@ -330,6 +363,33 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
     setRefAreaRight(null);
   };
 
+  // Captura o gráfico (como está na tela, com as cores e a área de zoom atual)
+  // em uma imagem PNG e monta o PDF com ela no topo do relatório.
+  const handleExportPDF = async () => {
+    if (exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      let chartImage = null;
+      if (chartContainerRef.current) {
+        const canvas = await html2canvas(chartContainerRef.current, {
+          backgroundColor: '#0f172a',
+          scale: 2,
+          logging: false
+        });
+        chartImage = {
+          dataUrl: canvas.toDataURL('image/png'),
+          imgProps: { width: canvas.width, height: canvas.height }
+        };
+      }
+      exportToPDF(chartTitle, data, seriesMeta, chartImage);
+    } catch (err) {
+      console.error('Erro ao capturar imagem do gráfico para o PDF:', err);
+      exportToPDF(chartTitle, data, seriesMeta, null);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   return (
     <div className={`bg-slate-800 border rounded-lg p-3 shadow-lg flex flex-col justify-between h-full w-full transition-all ${isOutOfRange ? 'border-red-500/80 bg-red-950/30 ring-2 ring-red-500/50' : 'border-slate-700'}`}>
       <div className="flex justify-between items-start mb-2">
@@ -360,7 +420,9 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
             </button>
           )}
           <button onClick={() => exportToCSV(chartTitle, data, seriesMeta)} className="text-slate-400 hover:text-emerald-400 p-1" title="Exportar CSV"><Download size={14} /></button>
-          <button onClick={() => exportToPDF(chartTitle, data, seriesMeta)} className="text-slate-400 hover:text-amber-400 p-1" title="Exportar PDF"><FileText size={14} /></button>
+          <button onClick={handleExportPDF} disabled={exportingPdf} className="text-slate-400 hover:text-amber-400 p-1 disabled:opacity-50" title="Exportar PDF">
+            {exportingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+          </button>
           <button onClick={() => onRemove(chart.id)} className="text-slate-400 hover:text-red-400 p-1" title="Remover Gráfico"><Trash2 size={14} /></button>
         </div>
       </div>
@@ -395,7 +457,7 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
         })}
       </div>
 
-      <div className="flex-1 w-full bg-slate-900/50 rounded p-1 border border-slate-700/50 min-h-[140px] select-none">
+      <div ref={chartContainerRef} className="flex-1 w-full bg-slate-900/50 rounded p-1 border border-slate-700/50 min-h-[140px] select-none">
         {!loading && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart

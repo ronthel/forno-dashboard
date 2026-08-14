@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api, { isOk } from './api';
 import { ServerOff, LogIn, RefreshCw, AlertCircle, UserPlus, ShieldCheck } from 'lucide-react';
 
 export default function Login({ onLoginSuccess, isServerDown }) {
@@ -18,9 +19,8 @@ export default function Login({ onLoginSuccess, isServerDown }) {
 
   useEffect(() => {
     if (isServerDown) return;
-    fetch('http://192.168.15.108:5000/api/auth/status')
-      .then((res) => res.json())
-      .then((data) => setHasUsers(Boolean(data.hasUsers)))
+    api.get('/api/auth/status')
+      .then((res) => setHasUsers(Boolean(res.data?.hasUsers)))
       .catch(() => setHasUsers(true))
       .finally(() => setStatusChecked(true));
   }, [isServerDown]);
@@ -30,13 +30,9 @@ export default function Login({ onLoginSuccess, isServerDown }) {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('http://192.168.15.108:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if (!res.ok) {
+      const res = await api.post('/api/auth/login', { username, password });
+      const data = res.data;
+      if (!isOk(res)) {
         setError(data.error || 'Não foi possível entrar.');
         return;
       }
@@ -54,13 +50,9 @@ export default function Login({ onLoginSuccess, isServerDown }) {
     setInfo('');
     setLoading(true);
     try {
-      const res = await fetch('http://192.168.15.108:5000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if (!res.ok) {
+      const res = await api.post('/api/auth/register', { username, password });
+      const data = res.data;
+      if (!isOk(res)) {
         setError(data.error || 'Não foi possível criar o usuário.');
         return;
       }
