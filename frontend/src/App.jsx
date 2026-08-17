@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown, Users, ScrollText, ShieldCheck, Loader2 } from 'lucide-react';
+import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown, Users, ScrollText, ShieldCheck, Loader2, Search } from 'lucide-react';
 import api, { isOk } from './api';
 import ChartCard from './ChartCard';
 import Login from './Login';
@@ -52,6 +52,7 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState('dashboard');
   const [isFieldPickerOpen, setIsFieldPickerOpen] = useState(false);
+  const [fieldSearchQuery, setFieldSearchQuery] = useState('');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
   const [oeeMetricsData, setOeeMetricsData] = useState({
@@ -516,7 +517,12 @@ export default function App() {
             <form onSubmit={handleAddChart} className="flex gap-1.5 relative">
               <button
                 type="button"
-                onClick={() => setIsFieldPickerOpen((prev) => !prev)}
+                onClick={() => {
+                  setIsFieldPickerOpen((prev) => {
+                    if (prev) setFieldSearchQuery('');
+                    return !prev;
+                  });
+                }}
                 className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none font-mono min-w-[140px] justify-between"
               >
                 <span className="truncate">
@@ -530,36 +536,70 @@ export default function App() {
               </button>
 
               {isFieldPickerOpen && (
-                <div className="absolute top-full left-0 mt-1 z-20 bg-slate-800 border border-slate-700 rounded shadow-xl w-64 max-h-64 overflow-y-auto p-1.5">
-                  <p className="text-[10px] text-slate-400 px-1.5 pb-1 uppercase font-semibold">
+                <div className="absolute top-full left-0 mt-1 z-20 bg-slate-800 border border-slate-700 rounded shadow-xl w-64 max-h-80 flex flex-col p-1.5">
+                  <p className="text-[10px] text-slate-400 px-1.5 pb-1 uppercase font-semibold shrink-0">
                     Marque uma ou mais variáveis
                   </p>
-                  {availableFields.map((field) => {
-                    const friendlyDesc = sensorConfigs[field]?.descricao;
-                    const checked = selectedFields.includes(field);
-                    return (
-                      <label
-                        key={field}
-                        className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-700/60 cursor-pointer text-xs text-slate-200"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => handleToggleFieldSelection(field)}
-                          className="accent-amber-500"
-                        />
-                        <span className="truncate">
-                          {friendlyDesc ? `${friendlyDesc} (${field})` : field}
-                        </span>
-                      </label>
-                    );
-                  })}
+                  <div className="relative mb-1.5 shrink-0">
+                    <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      autoFocus
+                      value={fieldSearchQuery}
+                      onChange={(e) => setFieldSearchQuery(e.target.value)}
+                      placeholder="Digite para buscar..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded pl-6 pr-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div className="overflow-y-auto">
+                    {(() => {
+                      const query = fieldSearchQuery.trim().toLowerCase();
+                      const filteredFields = query
+                        ? availableFields.filter((field) => {
+                            const friendlyDesc = sensorConfigs[field]?.descricao || '';
+                            return field.toLowerCase().includes(query) || friendlyDesc.toLowerCase().includes(query);
+                          })
+                        : availableFields;
+
+                      if (filteredFields.length === 0) {
+                        return (
+                          <p className="text-[11px] text-slate-500 px-1.5 py-2 text-center">
+                            Nenhuma variável encontrada.
+                          </p>
+                        );
+                      }
+
+                      return filteredFields.map((field) => {
+                        const friendlyDesc = sensorConfigs[field]?.descricao;
+                        const checked = selectedFields.includes(field);
+                        return (
+                          <label
+                            key={field}
+                            className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-slate-700/60 cursor-pointer text-xs text-slate-200"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => handleToggleFieldSelection(field)}
+                              className="accent-amber-500"
+                            />
+                            <span className="truncate">
+                              {friendlyDesc ? `${friendlyDesc} (${field})` : field}
+                            </span>
+                          </label>
+                        );
+                      });
+                    })()}
+                  </div>
                 </div>
               )}
 
               <button
                 type="submit"
-                onClick={() => setIsFieldPickerOpen(false)}
+                onClick={() => {
+                  setIsFieldPickerOpen(false);
+                  setFieldSearchQuery('');
+                }}
                 className="flex items-center gap-1 bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded text-xs font-medium"
               >
                 <Plus size={14} /> Adicionar

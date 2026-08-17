@@ -421,27 +421,7 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
 
   return (
     <div className={`bg-slate-800 border rounded-lg p-3 shadow-lg flex flex-col justify-between h-full w-full transition-all ${isOutOfRange ? 'border-red-500/80 bg-red-950/30 ring-2 ring-red-500/50' : 'border-slate-700'}`}>
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h2 className="font-semibold text-sm text-slate-200">{chartTitle}</h2>
-          {lastRow !== null && (
-            <p className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap gap-x-2">
-              {seriesMeta.map((s) => {
-                const v = lastRow[s.field];
-                const out = v !== undefined && (v > s.maxLimit || v < s.minLimit);
-                const isHidden = hiddenFields.includes(s.field);
-                return (
-                  <span key={s.field} className={isHidden ? 'opacity-40' : ''}>
-                    {isSingleField ? 'Valor atual: ' : `${s.descricao}: `}
-                    <span className={`font-mono font-bold text-xs ${out ? 'text-red-400' : 'text-amber-400'}`}>
-                      {v !== undefined ? v : '--'} {s.unidade}
-                    </span>
-                  </span>
-                );
-              })}
-            </p>
-          )}
-        </div>
+      <div className="flex justify-end items-start mb-2">
         <div className="flex items-center gap-1">
           {zoomDomain && (
             <button onClick={resetZoom} className="text-slate-400 hover:text-amber-400 p-1" title="Resetar Zoom">
@@ -463,25 +443,38 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
         </div>
       )}
 
-      {/* Chips de habilitar/desabilitar "penas" (séries) */}
+      {/* Checkboxes de habilitar/desabilitar "penas" (séries) — o nome de
+          cada variável aparece só aqui (não repetido no topo do card),
+          com o valor atual dela logo em seguida. */}
       <div className="flex flex-wrap gap-1.5 mb-1.5">
         {seriesMeta.map((s) => {
           const isHidden = hiddenFields.includes(s.field);
+          const v = lastRow ? lastRow[s.field] : undefined;
+          const out = v !== undefined && (v > s.maxLimit || v < s.minLimit);
           return (
-            <button
+            <label
               key={s.field}
-              type="button"
-              onClick={() => toggleFieldVisibility(s.field)}
-              title={isHidden ? 'Clique para exibir esta variável' : 'Clique para ocultar esta variável'}
-              className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium transition ${
+              title={isHidden ? 'Marque para exibir esta variável' : 'Desmarque para ocultar esta variável'}
+              className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded border text-[10px] font-medium transition cursor-pointer ${
                 isHidden
-                  ? 'border-slate-700 text-slate-500 bg-slate-900/40 line-through'
+                  ? 'border-slate-700 text-slate-500 bg-slate-900/40'
                   : 'border-slate-600 text-slate-200 bg-slate-900/60'
               }`}
             >
+              <input
+                type="checkbox"
+                checked={!isHidden}
+                onChange={() => toggleFieldVisibility(s.field)}
+                className="accent-amber-500 w-3 h-3 shrink-0"
+              />
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: isHidden ? '#475569' : s.cor }} />
-              {s.descricao}
-            </button>
+              <span className={isHidden ? 'line-through' : ''}>{s.descricao}</span>
+              {v !== undefined && (
+                <span className={`font-mono font-bold ${isHidden ? 'text-slate-600' : out ? 'text-red-400' : 'text-amber-400'}`}>
+                  {v} {s.unidade}
+                </span>
+              )}
+            </label>
           );
         })}
       </div>
