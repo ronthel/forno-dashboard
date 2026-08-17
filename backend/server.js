@@ -135,23 +135,33 @@ const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
 // --- ROTAS DO LAYOUT (POSTGRESQL) ---
+// charts_config guarda um objeto { charts, refreshInterval, timeRange } —
+// além de quais gráficos existem, também as preferências de visualização
+// (visibilidade de cada pena já vem dentro de cada gráfico em "charts";
+// atualização e atalho de período são globais do dashboard).
 app.get('/api/dashboard/layout', async (req, res) => {
   try {
     const result = await db.query(
       "SELECT charts_config FROM dashboard_layouts WHERE user_id = 'default_user' ORDER BY id DESC LIMIT 1"
     );
-    res.json(result.rows.length > 0 ? result.rows[0].charts_config : []);
+    if (result.rows.length === 0) {
+      return res.json({ charts: [] });
+    }
+    const stored = result.rows[0].charts_config;
+    // Compatibilidade com layouts salvos antes desta mudança, que guardavam
+    // só o array de gráficos direto (sem as preferências extras).
+    res.json(Array.isArray(stored) ? { charts: stored } : stored);
   } catch (err) {
-    res.json([]);
+    res.json({ charts: [] });
   }
 });
 
 app.post('/api/dashboard/layout', async (req, res) => {
-  const { charts } = req.body;
+  const { charts, refreshInterval, timeRange } = req.body;
   try {
     await db.query(
       "INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ('default_user', $1)",
-      [JSON.stringify(charts)]
+      [JSON.stringify({ charts, refreshInterval, timeRange })]
     );
 
     // Rota aberta de propósito (sem exigir login) — se mesmo assim vier um

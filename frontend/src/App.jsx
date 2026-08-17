@@ -141,20 +141,31 @@ export default function App() {
 
       const res = await api.get('/api/dashboard/layout');
       if (isOk(res)) {
-        const savedCharts = res.data;
+        // Compatibilidade com layouts salvos antes desta versão, que
+        // guardavam só o array de gráficos direto (sem as preferências de
+        // atualização/período/visibilidade das penas).
+        const layoutData = res.data;
+        const savedCharts = Array.isArray(layoutData) ? layoutData : (layoutData?.charts || []);
+
         if (Array.isArray(savedCharts) && savedCharts.length > 0) {
           // Compatibilidade com layouts antigos salvos com "field" (string única)
           // em vez de "fields" (array) — normaliza para o novo formato.
           const normalizedCharts = savedCharts.map((c) => ({
             ...c,
             fields: Array.isArray(c.fields) ? c.fields : (c.field ? [c.field] : []),
+            hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields : [],
           }));
           setCharts(normalizedCharts);
         } else {
           setCharts([
-            { id: '1', title: 'Sensor - CTP01', fields: ['CTP01'], minLimit: 100, maxLimit: 800 },
-            { id: '2', title: 'Sensor - CTP02', fields: ['CTP02'], minLimit: 100, maxLimit: 800 }
+            { id: '1', title: 'Sensor - CTP01', fields: ['CTP01'], minLimit: 100, maxLimit: 800, hiddenFields: [] },
+            { id: '2', title: 'Sensor - CTP02', fields: ['CTP02'], minLimit: 100, maxLimit: 800, hiddenFields: [] }
           ]);
+        }
+
+        if (!Array.isArray(layoutData)) {
+          if (layoutData?.refreshInterval !== undefined) setRefreshInterval(layoutData.refreshInterval);
+          if (layoutData?.timeRange) setTimeRange(layoutData.timeRange);
         }
       }
 
@@ -258,6 +269,17 @@ export default function App() {
     );
   }, []);
 
+  // Guarda quais "penas" (variáveis) estão ocultas em cada gráfico direto no
+  // estado do gráfico — assim isso é incluído quando o layout é salvo (ver
+  // handleSaveLayout) e volta do jeito que estava depois de um F5.
+  const handleHiddenFieldsChange = useCallback((chartId, hiddenFields) => {
+    setCharts((prevCharts) =>
+      prevCharts.map((c) =>
+        c.id === chartId ? { ...c, hiddenFields } : c
+      )
+    );
+  }, []);
+
   const handleRemoveChart = useCallback((id) => {
     setCharts((prevCharts) => prevCharts.filter((chart) => chart.id !== id));
   }, []);
@@ -347,7 +369,10 @@ export default function App() {
 
   const handleSaveLayout = async () => {
     try {
-      const response = await api.post('/api/dashboard/layout', { charts });
+      // Além de quais gráficos existem, salva também as preferências de
+      // visualização (visibilidade de cada pena já vem dentro de cada
+      // gráfico em "charts"; atualização e atalho de período são globais).
+      const response = await api.post('/api/dashboard/layout', { charts, refreshInterval, timeRange });
 
       if (isOk(response)) {
         setSavedSuccess(true);
@@ -716,6 +741,7 @@ export default function App() {
               refreshInterval={refreshInterval}
               onRemove={handleRemoveChart}
               onUpdateLimits={handleUpdateChartLimits}
+              onHiddenFieldsChange={handleHiddenFieldsChange}
               isMuted={isMuted}
             />
           </div>

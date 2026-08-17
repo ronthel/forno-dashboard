@@ -160,7 +160,7 @@ const playAlarmSound = (isMuted) => {
   } catch (err) { console.warn('Audio não permitido:', err); }
 };
 
-function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, isMuted }) {
+function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, isMuted, onHiddenFieldsChange }) {
   const fields = useMemo(
     () => (Array.isArray(chart.fields) ? chart.fields : (chart.field ? [chart.field] : [])),
     [chart.fields, chart.field]
@@ -178,8 +178,12 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
   const [exportingPdf, setExportingPdf] = useState(false);
   const chartContainerRef = useRef(null);
 
-  // Controle de "penas" (séries) ligadas/desligadas no gráfico
-  const [hiddenFields, setHiddenFields] = useState([]);
+  // Controle de "penas" (séries) ligadas/desligadas no gráfico — parte do
+  // próprio objeto do gráfico (chart.hiddenFields), então é restaurado do
+  // jeito que estava quando o layout salvo é carregado. Cada alteração é
+  // propagada pro componente pai (App.jsx) via onHiddenFieldsChange, que é
+  // quem efetivamente inclui isso no "Salvar" do layout.
+  const [hiddenFields, setHiddenFields] = useState(() => (Array.isArray(chart.hiddenFields) ? chart.hiddenFields : []));
 
   // Controle de zoom por arrastar seleção no eixo X
   const [zoomDomain, setZoomDomain] = useState(null); // [inicio, fim] em timestamp, ou null (intervalo completo)
@@ -226,9 +230,11 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
   );
 
   const toggleFieldVisibility = (field) => {
-    setHiddenFields((prev) =>
-      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
-    );
+    setHiddenFields((prev) => {
+      const updated = prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field];
+      if (onHiddenFieldsChange) onHiddenFieldsChange(chart.id, updated);
+      return updated;
+    });
   };
 
   const alarmDispatchedRef = useRef({});
