@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { InfluxDBClient } = require('@influxdata/influxdb3-client');
 require('dotenv').config();
 
@@ -118,6 +121,11 @@ async function initPostgres() {
         fator_correcao NUMERIC(10,4),
         tipo_alarme VARCHAR(50)
       );
+
+      -- Variável "desativada" pára de ser monitorada (some do picker do PLC,
+      -- some da lista de coleta do plc-service) mas o histórico já gravado no
+      -- InfluxDB continua intacto — soft delete, nunca apagamos a linha.
+      ALTER TABLE sensores_config ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE;
     `);
     console.log('[PostgreSQL] Conectado e tabelas prontas.');
   } catch (err) {
@@ -125,6 +133,104 @@ async function initPostgres() {
   }
 }
 initPostgres();
+
+// --- Integração com o plc-service (pipeline PLC -> InfluxDB) ---
+// O plc-service roda como um processo Python separado, na mesma máquina, e
+// expõe uma pequena API local (só em 127.0.0.1) para: (1) o backend consultar
+// quais tags o PLC tem disponíveis (para o picker de variáveis), e (2) o
+// backend avisar o pipeline de quais variáveis estão ativas, via um arquivo
+// combinado entre os dois (monitored_tags.json) em vez de uma segunda conexão
+// ao PLC ou de dar ao Python acesso direto ao PostgreSQL.
+const PLC_SERVICE_API_PORT = process.env.PLC_SERVICE_API_PORT || 8787;
+const MONITORED_TAGS_FILE = path.join(__dirname, '..', 'plc-service', 'monitored_tags.json');
+
+function fetchPlcServiceJson(reqPath) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(
+      { host: '127.0.0.1', port: PLC_SERVICE_API_PORT, path: reqPath, timeout: 4000 },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+    );
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.on('error', reject);
+  });
+}
+
+// Reescreve plc-service/monitored_tags.json com as variáveis ATIVAS no
+// PostgreSQL — chamado depois de qualquer alteração em sensores_config.
+// Se a consulta falhar, ou não houver nenhuma variável ativa, deixamos o
+// arquivo como está (nunca escrevemos uma lista vazia) para não parar a
+// coleta de dados por causa de um erro passageiro no backend.
+async function regenerateMonitoredTagsFile() {
+  try {
+    const result = await db.query('SELECT field_name FROM sensores_config WHERE ativo = TRUE ORDER BY field_name');
+    const fields = result.rows.map((r) => r.field_name);
+    if (fields.length === 0) {
+      console.warn('[plc-service] Nenhuma variável ativa encontrada — não sobrescrevendo monitored_tags.json para não parar a coleta.');
+      return;
+    }
+    fs.writeFileSync(MONITORED_TAGS_FILE, JSON.stringify(fields, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Erro ao atualizar monitored_tags.json:', err.message);
+  }
+}
+
+// Remove uma variável desativada de qualquer gráfico onde ela apareça no
+// layout salvo do dashboard — chamado só ao DESATIVAR (reativar não devolve
+// a variável aos gráficos automaticamente, o usuário adiciona de novo se
+// quiser). Se um gráfico ficar sem nenhuma variável depois da remoção, o
+// gráfico inteiro é removido (não faz sentido um card vazio). Segue o mesmo
+// padrão de "sempre INSERT" já usado por POST /api/dashboard/layout — nunca
+// sobrescreve o histórico de layouts antigos, só acrescenta a versão nova.
+async function removeFieldFromSavedLayout(fieldName) {
+  try {
+    const result = await db.query(
+      "SELECT charts_config FROM dashboard_layouts WHERE user_id = 'default_user' ORDER BY id DESC LIMIT 1"
+    );
+    if (result.rows.length === 0) return false;
+
+    const stored = result.rows[0].charts_config;
+    // Compatibilidade com o formato antigo (array puro de gráficos, sem
+    // refreshInterval/timeRange) — ver GET /api/dashboard/layout abaixo.
+    const isOldFormat = Array.isArray(stored);
+    const charts = isOldFormat ? stored : (stored?.charts || []);
+    if (!Array.isArray(charts) || charts.length === 0) return false;
+
+    let changed = false;
+    const updatedCharts = charts
+      .map((c) => {
+        if (!Array.isArray(c.fields) || !c.fields.includes(fieldName)) return c;
+        changed = true;
+        return {
+          ...c,
+          fields: c.fields.filter((f) => f !== fieldName),
+          hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields.filter((f) => f !== fieldName) : c.hiddenFields
+        };
+      })
+      .filter((c) => !Array.isArray(c.fields) || c.fields.length > 0);
+
+    if (!changed) return false;
+
+    const newConfig = isOldFormat ? updatedCharts : { ...stored, charts: updatedCharts };
+    await db.query(
+      "INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ('default_user', $1)",
+      [JSON.stringify(newConfig)]
+    );
+    return true;
+  } catch (err) {
+    console.error('Erro ao remover variável desativada do layout salvo do dashboard:', err.message);
+    return false;
+  }
+}
 
 // Importação das rotas do InfluxDB
 const influxRoutes = require('./routes/influx');
@@ -259,6 +365,8 @@ app.post('/api/config/turnos', requireRole(['supervisor', 'administrador']), asy
 });
 
 // --- ROTAS DE CONFIGURAÇÃO DE SENSORES / VARIÁVEIS ---
+// Traz TODAS as variáveis (ativas e desativadas) — o frontend decide como
+// exibir cada grupo; "ativo" indica se ela está sendo monitorada agora.
 app.get('/api/config/sensores', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM sensores_config');
@@ -271,7 +379,8 @@ app.get('/api/config/sensores', async (req, res) => {
         maxLimit: Number(row.max_limit),
         cor: row.cor,
         fatorCorrecao: Number(row.fator_correcao),
-        tipoAlarme: row.tipo_alarme
+        tipoAlarme: row.tipo_alarme,
+        ativo: row.ativo
       };
     });
     res.json(configs);
@@ -342,10 +451,87 @@ app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), a
       details: { alteracoes: alteracoes.length > 0 ? alteracoes : ['nenhum valor alterado'] }
     });
 
+    await regenerateMonitoredTagsFile();
+
     res.json({ success: true, message: 'Sensores salvos com sucesso no PostgreSQL!' });
   } catch (err) {
     console.error('Erro ao salvar sensores:', err);
     res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// Desativa uma variável: pára de ser monitorada (some do monitored_tags.json
+// que o plc-service usa) mas o histórico já gravado no InfluxDB e a própria
+// linha em sensores_config continuam intactos — pode ser reativada depois.
+app.put('/api/config/sensores/:fieldName/desativar', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const { fieldName } = req.params;
+  try {
+    const result = await db.query(
+      'UPDATE sensores_config SET ativo = FALSE WHERE field_name = $1 RETURNING field_name',
+      [fieldName]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Variável não encontrada.' });
+    }
+
+    await regenerateMonitoredTagsFile();
+    const removidoDosGraficos = await removeFieldFromSavedLayout(fieldName);
+
+    logAudit({
+      userId: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
+      action: 'desativou variável de monitoramento',
+      details: { fieldName, removidoDosGraficosSalvos: removidoDosGraficos }
+    });
+
+    res.json({ success: true, message: `Variável "${fieldName}" desativada.` });
+  } catch (err) {
+    console.error('Erro ao desativar sensor:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// Reativa uma variável desativada — volta a ser monitorada e escrita no
+// monitored_tags.json (a configuração antiga, descrição/limites/cor, etc.,
+// continua a mesma de antes da desativação).
+app.put('/api/config/sensores/:fieldName/reativar', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const { fieldName } = req.params;
+  try {
+    const result = await db.query(
+      'UPDATE sensores_config SET ativo = TRUE WHERE field_name = $1 RETURNING field_name',
+      [fieldName]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Variável não encontrada.' });
+    }
+
+    await regenerateMonitoredTagsFile();
+
+    logAudit({
+      userId: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
+      action: 'reativou variável de monitoramento',
+      details: { fieldName }
+    });
+
+    res.json({ success: true, message: `Variável "${fieldName}" reativada.` });
+  } catch (err) {
+    console.error('Erro ao reativar sensor:', err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// Lista as tags que o PLC expõe (via API local do plc-service) para o
+// picker de "Adicionar nova variável" — restrito a quem pode alterar
+// configuração, já que expõe os nomes internos das tags do controlador.
+app.get('/api/plc/tags', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  try {
+    const data = await fetchPlcServiceJson('/tags');
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: 'Não foi possível consultar as tags do PLC. Verifique se o pipeline (plc-service) está rodando.' });
   }
 });
 

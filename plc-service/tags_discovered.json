@@ -1,0 +1,7771 @@
+{
+  "total": 1294,
+  "atomic_scalar": [
+    {
+      "tag_name": "ACCUMULATE_BYPASS_SOL_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ALARME_ATIVO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ALARM_COUNT",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ANO",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Altura_Loop_IFM",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Angulo_Maquina",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Aparece_animacao_maquina_IHM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Auto_Restart_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Autotech_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Aux_Coil_ID",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Aux_Coil_ID2",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Aux_Coil_ID3",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BATIDAS_POR_MINUTO",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BIT_ARM_READY_FOR_4SECONDS",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BLOQ_COPIA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BLOWOFF_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BLOWOFF_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BOTaO_START_IHM_Lubrificacao",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BOTaO_STOP_IHM_Lubrificacao",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BarCode_Coil",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Bit_Lucas",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Bit_zerar_dados_fechar_turno",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Blower_Motor_On",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Blowoff_Aux_Ciclo",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Bobina_Diametro_Min",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Bobina_Operacao_Sem_CoilID",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Bobina_Presente_Mandril_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Bobina_Presente_Mandril_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Botao_Reset_IHM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Botao_Tela_Desligar_Motor_Principal",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Botao_Tela_Ligar_Motor_Principal",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Botao_desabilita_contagem_copos",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CL1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CLS_OK_MINSTER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CLUTCH_SAFETY_DUMP_SOL_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CM3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CONF_Press_RUN",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CONTAGEM_BOBINA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "COPIA_CAMPO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT1_MINSTER_LOCK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT1_UNCOILER_LOCK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT2_MINSTER_LOCK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT2_UNCOILER_LOCK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT3_UNCOILER_LOCK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT4_UNCOILER_LOCK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT5_UNCOILER_LOCK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTC",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTP01",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTP02",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTP03",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTP04",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTP05",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTP06",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTQ",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CTV",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CUPPER_STROKSPORMINUTO",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CUP_BLOWER_DISCONNECT_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Calc_low_speed",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Calc_low_speed1",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Chama_Tela_IHM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Check_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Espera",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Espera_Peso_Bruto",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Espera_Peso_Liq",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Espera_Tara_Peso",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Rodando",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Rodando_Peso_Bruto",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Rodando_Peso_Liq",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_De_Peso",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Lido",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_barras_Bobina_atualizado",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Code_Bar_DINT",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Code_Bar_Wait",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Change_To_LineControl",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Correlation_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Diam_Empty_mm",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Diam_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Diam_mm",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Factor_2",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Incremental_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Internal_Diameter",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Internal_Perimeter",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Mandrel_1_Present",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Mandrel_2_Present",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_MaxExternal_Diameter",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_MaxExternal_Perimeter",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Nanshan",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Net_Weight_Kg",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Net_Weight_Kg_Old",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Perimeter_Correlation_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Proportion_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Weight_Real_Kg",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_Weight_Real_Kg_Inst",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Comanda_High_Speed",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Comanda_Low_Speed",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Comanda_Mediun_Speed",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Compare_Coil",
+      "data_type": "SINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_10_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_11_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_12_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_13_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_14_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_15_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_16_Die_Sensor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conf_ArmRead",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Console_Off",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Consumo_de_ar_Minster",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Consumo_de_ar_Minster_em_NMh",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Consumo_em_Psi_minster",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket1",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket10",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket11",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket12",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket13",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket14",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket2",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket3",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket4",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket5",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket6",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket7",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket8",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contador_Pocket9",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contagem_Stroke",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contagem_Stroke_Aux1",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contagem_Stroke_Aux2",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Contagem_Stroke_Residual_anterior",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Control_Power_Off",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Conveyor_JAM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Corte_da_meia_noite",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Count_LEN",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cup_Blower_Disconnect",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cup_Blower_Overload",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cup_Prod_Aux",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cup_Prod_Bobina",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DADOS_IGUAL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DATA_IGUAL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DB1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DB2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIEBLOCK_OK_MINSTER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Blocks",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_CHECK_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_CHECK_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_10_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_11_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_12_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_13_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_14_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_1_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_2_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_3_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_4_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_5_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_6_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_7_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_8_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_JAM_9_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_SENSOR",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_SENSOR_INPUT",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_0_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_1_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_2_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_3_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_4_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_5_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_6_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I0_7_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_0_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_1_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_2_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_3_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_4_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_5_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_6_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_I1_7_Latched",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIE_Sensor_Latched",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DL_In_ItemSeqNumberAux",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Dados_Cont_Anterior",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Dia",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Diametro_Bobina_IFM",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Die_Blowoff",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Die_Check",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Drive_Minster_Falha",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "EMERGENCY_STOP_PB_FLAG_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "EMERGENCY_STOP_P_B_LEFT_GATE_FLAG",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "END_MATERIAL_LUBRIFICATOR",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ESTOP_OK_MINSTER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ESTOP_OK_UNCOILER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Emerg_Tras_Esquerda_S2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FIFO_Coil_Weight_Kg_Out",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FIFO_Coil_Weight_Out",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FIM_COD_CAMPO",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FLYWHEEL_BRAKE_PRESSURE_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FLYWHEEL_BRAKE_SOLENOID_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FRONT_LEFT_BLOWOFF_POWER_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FRONT_RIGHT_BLOWOFF_POWER_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FSA_HAb_Sensor",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FSA_HAb_Sensores",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FSA_INICIAR",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FSA_RETIRAR",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Falha_Cod_Barras_Espera_Tara",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Falha_Cod_Barras_Espera_repetido",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Falha_Uncoiler_Cod_Barras",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Falha_leitura_codigo",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Fallha_Cod_Barras_Espera_peso",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Faults_NR12",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Filter_1_Clean",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Filter_2_Clean",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Fim_Code",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FlipFlop_Blowoff_Active",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FlipFlop_Blowoff_Aux",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Flip_Flop_Blowoff",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ForceStatus",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Forward_Motor_On",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Front_Guard_Sw",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GATES_OK_MINSTER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GATES_OK_UNCOILER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GATE_LEFT_OPEN_FLAG_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GATE_RIGHT_OPEN_FLAG_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GOOD_COUNT",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GS2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GS3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GS4",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GUIDE_PIN_CYCLE_SWITCH_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GUIDE_PIN_LUBE_SOL_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "GUIDE_PIN_RETURN_SOL_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Gross_Weight_DINT",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Gross_Weight_Wait",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Guide_Pin_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HABILITA_MSG_SUPERVISORIO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HIGH_SPEED_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HIGH_SPEED_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HORN_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HYDRAULIC_CLUTCH_PRESSURE_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HYDRAULIC_LEVEL_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HYD_CLUTCH_DUMP_SOL_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hab_Desab_low_speed",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hab_Hist_Falha",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hab_Msg_IHM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Habilita_Auto_Troca_Bobina",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Habilita_botao_desabilitar_contagem",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "High_Loop_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Horas",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hyd_Clutch_Pressure_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hyd_Fluid_Level_Low",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hyd_Motor_Disconnect",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hyd_Motor_Overload",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "IDEAL_CYCLE",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "IHM_BLOWOFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "IHM_DIE_SENSOR_FAULT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "IHM_Libera_Uncoiler_Cod_Barras",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INCH_CLUTCH_SOL_A_CLUTCH_VALVE_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INCH_RUN_OUTPUT_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INDEX_AUX",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INDEX_ENV_ETIQUETA",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INDEX_FOR_ETIQUETA_ENV",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INDICE_COD_CAMPO",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INDICE_COPIA_CAMPO",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INDICE_ETIQUETA",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INI_COD_CAMPO",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "INNER_CBALANCE_AIR_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Inch_Selected_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Indica_contagem_copos_desabilitada",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Indicacao_IHM_Hidraulico_Ligado",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Informacao_Tela_Motor_Principal_Rodando",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Inner_Cbal_Air_Low",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Interruptor_Pino_Rolo",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Is_Off_Latch",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Is_On_Latch",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JAM_CHECK_DIE_RESET_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JAM_CHECK_DIE_RESET_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JOG_Mandril_Line",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JOG_SPEED_MANDRIL1",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JOG_SPEED_MANDRIL2",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS1_COLLAPSE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS1_EXPAND",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS2_OVER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS2_UNDER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS3_OVER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS3_UNDER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS4_DOWN",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS4_UP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS5_CCW",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS5_CW",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS6_DOWN",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS6_IN",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS6_OUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS6_UP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS7_FWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS7_REV",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS8_FWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "JS8_REV",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Jam_Check_Die_reset",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Jammed_part_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LAMINA_ENTRADA_LUB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LIGHT_CURTAIN_LEFT_FAULT_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LIGHT_CURTAIN_RIGHT_FAULT_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LOW_SPEED_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LOW_SPEED_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LS_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LS_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LS_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LS_4",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LS_6",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_4",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_5",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_6",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_PB10",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_PB11",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_PB14",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_PB5",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_PB7",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_PB8",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LT_PB9",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUBE_FILTER_CLOGGED_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUBE_MONITOR_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUBE_MONITOR_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUBRICATOR_TIMING_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUBRICATOR_TIMING_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUBRIFIC_LOW_PRES_LOW_LEVEL_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUB_AUTO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUB_IN_AUTO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUB_JOGFWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUB_JOGREV",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUB_PUMP_SELECT_BIT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUB_RUNFWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LUB_STOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Left_Guard_Switch",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Leitura_Cod_Barras_Bobina_Espera_ok",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Libera_Uncoiler_Cod_Barras",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lim_Vel_Alta",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lim_Vel_Baixa",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lim_Vel_Max",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lim_Vel_Maxima",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lim_Vel_Min",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Limit_Coil_Value",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Limit_Coil_Weight_High",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Limit_Coil_Weight_Low",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Limite_Inferior_Loop",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Load_Guard_Timing",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_10_I_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_1_O_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_2_I_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_3_I_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_4_O_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_5_I_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_6_O_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_7_O_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_8_O_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Loop_Correction_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Low_Lube_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Low_Lube_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Low_Speed_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Low_speed",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lub_Max_Speed",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lub_Min_Speed",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lube_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lube_Filter_Clogged",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lube_Hyd_Motor_On",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lube_Motor_Disconnect",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lube_Overload",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubricator_Auto",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubricator_Exit_No_Loop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubricator_High_Loop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubricator_Trim_Off",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubricator_Trim_On",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubrificator_Track_Cupper_Max_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubrificator_Track_Cupper_Med_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubrificator_Track_Cupper_Min_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M1_S",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M2_S",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M3_S",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M4",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M4_S",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MANDREL_1_JOG",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MANDRIL_SPEED",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP1A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP2A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP3A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP4",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MCP4A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD1_JOGFWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD1_JOGREV",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD1_RUNFWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD1_STOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD2_JOGFWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD2_JOGREV",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD2_RUNFWD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MD2_STOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MEDIUM_SPEED_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MEDIUM_SPEED_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MINSTER_CT_CL_RESET",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MINSTER_ESTOP_RESET",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MINSTER_SCANNER_RESET",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MOSTRAR_SENHA_RESET_SHUT_HEIGHT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MSG_FALHAS",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MSG_SEGURANCA",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "M_STATUS",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MaQUINA_SEGURA_NR_12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Main_Drive_Overload",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Main_Drive_Thermals",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Main_prog_ONS",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandrel_1_Low",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandrel_2_Low",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandrel_Speed_Request",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandril_1_Active",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandril_1_Active_S",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandril_1_AutoStop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandril_2_Active",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandril_2_Active_S",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mandril_2_Stop_Bit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mes",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Min_Speed_Lubrificador",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Min_Speed_Mandrel",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MinorFaultBits",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Minster_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Minutos",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_10_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_11_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_12_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_13_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_14_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_15_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_16_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_17_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_8_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_STA_9_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta1_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta2_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta3_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta4_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta5_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta6_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Missed_Part_Sta7_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N767",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NO_STOCK_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_Input_22",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_Input_24",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_Input_26",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_Input_28",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_Inputs",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_ONS",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_Outputs",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR12_Simko_Sinotipos",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NR_12SIMKO_SINOTIPO_22",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Net_Weight_DINT",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Net_Weight_Wait",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "No_Stock",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "NovaLeitura",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Num_Die_Sensor_Active",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Numero_Linha",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Numero_Maquina",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ONS_10",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ONS_Cod_Barras",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ONS_OEE",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ONS_coil_change",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ONS_contagem_pulso",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "OT_HFI_IHM_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "OUTER_CBALANCE_AIR_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "O_8_0",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "O_8_14",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "O_8_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Off_Selected",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Origem_Bobina",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Outer_Cbal_Air_Low",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PBL_10",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PBL_11",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PBL_14",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PBL_5",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PBL_7",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PBL_8",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PBL_9",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PB_12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PB_12A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PB_4A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PB_4B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PB_6",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PE_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PE_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PE_6",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PE_7",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PE_8",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PE_9",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PISCA_SINALIZACAO_CARRO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PL1_UNC1_SlewPermissive",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PM1_Fault_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PM_1_fault_to_dl40",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PM_in_fault_to_DL40",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PORTA_PROTEcaO_DIREITA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PORTA_PROTEcaO_ESQUERDA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PORTA_PROTEcaO_FRONTAL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRESS_ARMED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRESS_RUN",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PROX_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PROX_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PROX_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PROX_4",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PROX_5",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRT50",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRT51",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRX01",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRX1_UNC1_InPosition1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRX2_UNC1_InPosition2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PR_STOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PR_TOPSTOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PULSO1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PULSO2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PULSO_ONS",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PULSO_ONS1",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PULSO_ONS2",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PULSO_ONS3",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Prensa_Rolo_Aviso_Baixo",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Not_Inch",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Not_Run",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Ready_Inch",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Run_Fault_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Run_Fault_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Run_Fault_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Run_Setup_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Run_Setup_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Speed_Constant",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Speed_Factor",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Press_Speed_Multiplier",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:Coil_ID.eng",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Analog_Diam_Data",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Analog_Loop_Data",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Anglo_Resover",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_DOWN_ZONE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_MOTOR_STOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_NOT_PARALLEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_PARALLEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_ROTATE_PERM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_RUN_PERMS",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_UNCOILER_ZONE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Coil_Circumference",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Coil_Circumference_Millimeter",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Coil_Diam_Inches",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Coil_Diameter_Millimeter",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.DOWNENDER_RUN_PER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.DOWNENDER_UP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.DOWNEN_ZONE_TRAVEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Diam_Setpt1",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Diam_Setpt2",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Diameter_Multiplier",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.EXIT_NO_LOOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.FATOR_LOW_LOOP",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.FINAL_BOBINA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.FLIP_FLOP_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.FLIP_FLOP_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.FM005_TO_DRIVE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.HMI_Inch_Unit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.HMI_Metric_Unit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.I2114",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_AUTO_COMANDO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_AUTO_TRIM",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_AUTO_TRIM_OFF",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_AUTO_TRIM_ON",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_DRIVE_FORWARD",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_DRIVE_REVERSE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_FLIFLOP3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_FLIFLOP4",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_JOG",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.LUB_SPEED",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Lucas",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.M4_STOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MADRILJOG_LINESIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MADRILJOG_LOADSIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDREL1_JOG_LINESIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDREL1_JOG_LOADSIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDREL2_JOG_LINESIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDREL2_JOG_LOADSIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDREL_JOG_LINESIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDREL_JOG_LOADSIDE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDRIL1_Forward",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDRIL1_Reverse",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDRIL2_Forward",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDRIL2_Reverse",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MINSTER_RUNNING",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MM_Conversion",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Mandril1_Forward_auto",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Mandril2_Forward_auto",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Max_Coil_Diameter",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Max_Speed_Mandril",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Maximum_Press_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Metric_Units",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Min_Coil_Diameter",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Min_Speed_Mandril",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ONS_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ONS_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ONS_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.POSICAO_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.POSICAO_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Pi",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Press_Startup_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.RATE",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ROLLS_CLOSE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ROLLS_FLIPFLOP5",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ROLLS_FLIPFLOP6",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ROLLS_FLIPFLOP7",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.ROLLS_FLIPFLOP8",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Raw_Analog_Diam_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Raw_Analog_Loop_Data",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Romulo",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Small_Coil_Crossover",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Small_Coil_Crossover_Millimeters",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Small_Coil_Warning",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Speed_Multiplier",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Speed_Test",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Start_Stop_Loop_Minster_Stopped",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Strokes_Per_Minute",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TEMPO_MINSTE_EM_BAIXA_VELOCIDADE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TEMPO_TROCA_LIMITE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TESTANDO",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TESTE1",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TRIM_FM005",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TROCA_BOBINA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TROCA_BOBINA_BIT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Teste_Mandril_Start",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Timer_Cycle_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Trimmed_Drive_Commond_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Trimmed_Lubricator_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UC_Loop_Height_Inch",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UC_Loop_Height_MM",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UC_Loop_Setpt1",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UC_Loop_Setpt2",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UC_Loop_Span",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UC_Max_Drvspd_Loop",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UC_Min_Drvspd_Loop",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UNCOILER_AUTO_TRIM",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UNCOILER_BOBINA",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UNCOILER_HIGH_LOOP",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UNCOILER_SPEED",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Automatic",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_CCW",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_CW",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Drive_Command",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Max_Drive_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Min_Drive_Speed",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncolier_Speed_Multiplier",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Units_Multiplier",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.VELOCIDADE_CUPPER",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.VELOCIDADE_UNCOILER",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Velocidade_Mandril",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.bobina_de_teste",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.chico",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.fga2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.minste",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.temp_troca_de_bobina",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.tempo_minster_em_baixa",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_123",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_chico",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_chico2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_chico3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_chico_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_chico_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_chico_6",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_de_velocidade",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.teste_fga",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.testechico",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.testechico3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.testechico5",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:_2_MAIN_PROG.relogio_Bool",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Push_Reset",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REAR_LEFT_BLOWOFF_POWER_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REAR_RIGHT_BLOWOFF_POWER_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "RESET_IHM_e_I_O",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ROLL_FEED_AIR_PRESSURE_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ROLL_FEED_LATCHPIN_LIMIT_SW_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "RST",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "RUN_CLUTCH_SOL_B_CLUTCH_VALVE_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "RUN_MODE_SELECT_STAT_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "RUN_RELAY_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "RUN_TIME_SEC",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Read_Run",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Read_Single_Stroke",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Rear_Guard_Switch",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ReferenceFrequency_to_Uncoiler",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Reset_Falhas",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Retirar_FSA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Reverse_Motor_On",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Right_Guard_Sw",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Roll_Feed_Latchpin",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Run_Enable",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Run_Enable_Mode",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Run_Selected_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Rung_Coments",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Running_Code",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S10_MINSTER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S11_MINSTER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S12_MINSTER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S20_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S20_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S21_MINSTER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S21_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S21_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S22_MINSTER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S22_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S22_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S23_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S23_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S24",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S24_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S24_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S25_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S25_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S30_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S30_UNCOILER_SEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S31_MINSTER_SEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S31_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S31_UNCOILER_SEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S32_MINSTER_SEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S32_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S32_UNCOILER_SEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S33_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S33_UNCOILER_SEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S34_UNCOILER_LED",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S34_UNCOILER_SEL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S40_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S41_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S42_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S43_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S44_UNCOILER_PB",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCANNERS_OK_MINSTER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCANNERS_OK_UNCOILER",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCANNER_FRONT_FAULT_FLAG_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCANNER_REAR_FAULT_FLAG_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCRAP_DIE_JAM_OFF",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCRAP_DIE_JAM_ON",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCRAP_DIE_JAM_SENSOR_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SCRAP_HOOD_OPEN_FLAG_NR12",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SENSOR_BOLACHA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SENSOR_BOLACHA_BOA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SENSOR_SHUT_HEIGHT_DIANTEIRO_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SENSOR_SHUT_HEIGHT_TRASEIRO_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SHUT_HEIGHT_D",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SHUT_HEIGHT_T",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SINALIZACAO_DE_PORTA_ABERTA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SMART",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL1_UNC1_Lockpin",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL2_UNC1_CW",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL3_UNC1_CCW",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL4_UNC1_Mand1Expand",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL5_UNC1_Mand1Collapse",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL6_UNC1_Mand2Expand",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL7_UNC1_Mand2Collapse",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOLENOIDE_RESERVA_FRONT_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOLENOIDE_RESERVA_REAR_OUTPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_11A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_11B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_12A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_12B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_13A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_13B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_14",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_15",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_16",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_17A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_17B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_18",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_2A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_2B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_3A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_3B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_8A",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_8B",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SOL_9",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SR_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SR_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_10_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_11_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_12_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_13_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_14_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_15_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_16_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_17_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_1_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_2_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_3_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_4_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_5_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_6_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_7_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_8_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STA_9_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STOP_MANDRIL",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "STOP_MANDRIL_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SYSTEM_START_RUN1_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SYSTEM_START_RUN2_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SYTEM_FAULT_RESET_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Safety_Setup_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Safety_Setup_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Safety_Setup_3",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Safety_Setup_Guards",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Scrap_DIE_JAM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Scrap_DIE_JAM_Aux",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Scrap_DIE_JAM_Prompt",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Scrap_DIE_JAM_Supervisorio",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Scrap_Hood_Jam",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Scrap_Hood_Limit_Sw",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Segundos",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Seguranca_OK",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Selecao_de_Bombas_pela_IHM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Selecao_front_left_blowoff_power",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Selecao_front_right_blowoff_power",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Selecao_rear_left_blowoff_power",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Selecao_rear_right_blowoff_power",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Selecao_solenoide_Reserva_Front",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Selecao_solenoide_reserva_Rear",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Select_Vel_Center_Line",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Senha_IHM_Reset_Shut_Heigth",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Seq_Anterior",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SetPoint_Loop",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Shut_Height_Frontal",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Shut_Height_Rear",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Single_Stroke_Enabled",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Single_Stroke_Selected",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soft_Diameter_Measurement",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soft_Loop_Measurement",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soft_Speed_Mandrel",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Cupper_SPM",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_High_Top_Stop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Low_Top_Stop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Lubrificator_Track_Cupper",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Lubrificator_Track_Cupper_FatorK",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Main_Motor_Cupper_HZ",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Medium_Top_Stop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_PM1_Supervisorio",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Test_Mandril",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Sta_Jam_17",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Start_Blower_Motor",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Start_Fwd_Main_Drive",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Start_Lube_Hyd_Motor",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Start_Rev_Main_Drive",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Start_Stop_Loop_Control",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Status",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Stroke_Aux",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Stroke_Counter",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TEMPO_DE_TROCA_DE_BOBINA",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TESTE",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TOP_STOP_BUTTON_INPUT",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TOTAL_COUNT",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Teste_Bit_Stop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Teste_Diametro",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Teste_Loop_Control",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Teste_Mandril_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Top_Stop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Trava_alto_Fechada",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Trava_de_protecao_Traseira",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Trava_protecao_esquerda",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Troca_Bobina_Andamento",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNC1_IOL71_I_Ch",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNC1_IOL71_O_Ch",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_AUTO_TRIM_1",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_AUTO_TRIM_UP",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_CT1_RESET",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_CT_SCAN_RESET",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_ESTOP_RESET",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_IN_AUTO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_MAX_SPEED",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_MIN_SPEED",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_SPEED_REQUEST",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNCOILER_SPEED_teste",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UN_AUTO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Uncoiler_Auto",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Uncoiler_High_Loop",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Uncoiler_Speed_Big_Coil",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Uncoiler_Speed_Medium_Coil",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Uncoiler_Speed_Small_Coil",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Uncoiler_Speed_superSmall_Coil",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Uncolier_Speed_Multiplier_Plus",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "VELOCIDADE_ALTA",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "VELOCIDADE_BAIXA",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "VELOCIDADE_MEDIA",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Val_Vel_Alta_Line_Control",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Val_Vel_Baixa_Line_Control",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Val_Vel_Line_Control",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Val_Vel_Media_Line_Control",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Valve_Fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Variavel_Inteiro",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Vazao_Ar_Minster",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Vazao_Ar_Minster_4to0",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Vazao_Ar_Minster_Real",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Vazao_de_ar_Minster",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Vel_Maquina_SPM",
+      "data_type": "INT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Write_Data_Block",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "_10_Out",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "_S1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "arm_read_from_PV_Plus",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "autotech_off_check",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "autotech_on_check",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "confirm_die_select_from_pv",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "cont_bit_teste",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "contador_de_bobina",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "die_protection_enabled",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "die_select_auxbit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "die_select_bit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "die_select_enable",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "falha",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "falha2",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "falha_uncoiler_co_barras",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "fsa_teste",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "guide_pin_lube_sol",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "horn_silence",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "igor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "inch_single_run_select_from_PV_Plus",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "index",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "index1",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "index2",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "marlon",
+      "data_type": "SINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_FIFO",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_FIFO_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_barcode",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_bit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_tb",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ons_troca",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "pega",
+      "data_type": "SINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "peixe",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "peixe1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "press_armed_and_ready",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "resetar_com_senha_pela_IHM",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "retirar_apos_treinar_operacao",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "scrap_die_jam_sensor_latch",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "screen_8_display_prompt_1",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "screen_8_display_prompt_2",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "screen_reset_bit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "screen_select_aux_bit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "screen_select_enable_pv_aux_bit",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "screen_select_from_PV_Plus",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "shut_height_rear_fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "shut_heigth_frontal_fault",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "test_dint",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "test_dint_1",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "test_dint_2",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "teste_dint",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "teste_igor",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "teste_ihm",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "teste_real",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "teste_real_2",
+      "data_type": "REAL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "teste_rv",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "teste_spring",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "testeigor",
+      "data_type": "DINT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "testes_fga",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "top_stop_latch",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "trava_interruptor_protecao_Frente",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "trava_interruptor_protecao_direita",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "will",
+      "data_type": "BOOL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    }
+  ],
+  "others": [
+    {
+      "tag_name": "ANO_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "AVE_Coil_Weight_Kg",
+      "data_type": "CONTROL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Ano_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Ano_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Aux_Coil_String_Null",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "B3",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "B34",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "B52",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BARRA_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "BarCode_Coil_ASCII",
+      "data_type": "SINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CL1_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CL2_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CLOCK",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CM1_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CM1_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CM2_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CM3_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CM4_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "COD_CAMPO",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CONSUMED_FROM_LC",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CONV_MSG_N7_25",
+      "data_type": "MESSAGE",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT1_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT1_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT2_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT2_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT3_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT4_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CT5_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "CodBarras",
+      "data_type": "DINT",
+      "dim": 2,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Buffer_String",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Espera_String",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Peso_Bruto",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Peso_Bruto_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Peso_Liq",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Peso_Liq_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_Bobina_Rodando_String",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Cod_Barras_STR",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Code_Bar_String",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Code_Bar_String_Wait",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_ID_DataConcentrator",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Coil_ID_To_DataConcentrator",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Control_FIFO_Coil_Weight",
+      "data_type": "CONTROL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Control_FIFO_Coil_Weight_Kg",
+      "data_type": "CONTROL",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Counter",
+      "data_type": "COUNTER",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Counter_Coil_Change",
+      "data_type": "COUNTER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DATA_SYSTEM_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DIA_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DL_In",
+      "data_type": "UDT_DatalogicInput",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DL_Out",
+      "data_type": "UDT_DatalogicOutput",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DOIS_PONTOS_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Datalogic_Barcode:I",
+      "data_type": "_0352:002B_251C_3AA96808:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Datalogic_Barcode:O",
+      "data_type": "_0352:002B_251C_B4B7F0A4:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "DateTime",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Delay_CalculatorWeight_Coil",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Delay_Off_Lubrificator",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Delay_Start_Ramp",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Delay_Stop_Mandrel",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Desbobinador_Mandril_1:I",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Desbobinador_Mandril_1:O",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Desbobinador_Mandril_2:I",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Desbobinador_Mandril_2:O",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Dia_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Dia_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Drive_Minster:I",
+      "data_type": "AB:PowerFlex753_ENETR_Drive:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Drive_Minster:O",
+      "data_type": "AB:PowerFlex753_ENETR_Drive:O:1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ESPACO_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "F35",
+      "data_type": "REAL",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "F8",
+      "data_type": "REAL",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FIFO_Coil_Weight",
+      "data_type": "REAL",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "FIFO_Coil_Weight_Kg",
+      "data_type": "REAL",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Gross_Weight_String",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HORA_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "HORA_SYSTEM_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hist_Cod_Bobina",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hist_Copos",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hist_OT_HFI",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hist_Peso_Bruto",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hist_Peso_Liq",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hist_Strokes",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hist_Timestamp_Bobina",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hora_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hora_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hydraulico_Uncoiler:I",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Hydraulico_Uncoiler:O",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "I",
+      "data_type": "INT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LINE_CONTROL:I",
+      "data_type": "AB:1756_ENET_17SLOT:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "LINE_CONTROL:O",
+      "data_type": "AB:1756_ENET_17SLOT:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Line_Control_Aux2:I",
+      "data_type": "AB:1756_ENET_17SLOT:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Line_Control_Aux2:O",
+      "data_type": "AB:1756_ENET_17SLOT:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local:4:I",
+      "data_type": "AM:1756_1241:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local:4:O",
+      "data_type": "AM:1756_124x:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local:5:C",
+      "data_type": "AB:1756_DI:C:1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local:5:I",
+      "data_type": "AB:1756_DI:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local:6:C",
+      "data_type": "AB:1756_DO:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local:6:I",
+      "data_type": "AB:1756_DO:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local:6:O",
+      "data_type": "AB:1756_DO:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Local_9_I_CH",
+      "data_type": "INT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubrificador_Principal:I",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Lubrificador_Principal:O",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MES_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "MINUTO_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mes_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Mes_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Message_To_Line_Control",
+      "data_type": "MESSAGE",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Minuto_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Minuto_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N10",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N13",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N15",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N41",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N42",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N43",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N7",
+      "data_type": "INT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "N9",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Nanshan_Cod",
+      "data_type": "SINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Nanshan_Cod_Etiq",
+      "data_type": "NANSHAN_CODES_ETIQUETA",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Nanshan_Coil",
+      "data_type": "Nanshan_Codes_Bobina",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Net_Weight_String",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Novelis_Cod",
+      "data_type": "SINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Novelis_Cod_Etiq",
+      "data_type": "NOVELIS_CODES_ETIQUETA",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Novelis_Coil",
+      "data_type": "Novelis_Codes_Bobina",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Novo_Cod_Barras",
+      "data_type": "SINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "O",
+      "data_type": "INT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Origem_Coil",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "PRODUCED_TO_LC",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Prod_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Prod_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Produced_to_DataConcentrator",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Produced_to_DataConcentrator_Coil_ID_1",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Produced_to_DataConcentrator_Coil_ID_2",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Produced_to_DataConcentrator_Coil_ID_3",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Produced_to_DataConcentrator_Coil_ID_4",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Produced_to_DataConcentrator_Coil_ID_5",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.COILCAR_CONTACTOR_TIMER",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.CONTADOR_TESTE",
+      "data_type": "COUNTER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.DOWNENDER_M4CONTACTOR",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Diameter_Averaging_AOI",
+      "data_type": "Averaging_AOI",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.HIGH_LOOP_TIMER",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDRIL_POSICAO_1",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.MANDRIL_POSICAO_2",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Press_Multiplier_Limit_AOI",
+      "data_type": "Multiplier_Limit_AOI",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Problema_PE7",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.RST_TIMER_OFF",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.SLEW_HOLD_TIMER",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.TEMPO_TROCA_TIMER",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Timer_Cycle",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.UNLOAD_VALVE_TIMER",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Diameter",
+      "data_type": "Analog_Conversion_AOI",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Loop",
+      "data_type": "Analog_Conversion_AOI",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Loop_Averaging_AOI",
+      "data_type": "Averaging_AOI",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.Uncoiler_Speed_SCP",
+      "data_type": "SCP",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.contagem_pulso",
+      "data_type": "COUNTER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.temp_trocabobina",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.tempo_de_pulso",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.tempo_de_reset_troca_de_bobina",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.testechico4",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Program:MainProgram.troca_de_bobina",
+      "data_type": "COUNTER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "R6",
+      "data_type": "CONTROL",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "READ_CODE",
+      "data_type": "READ_CODE",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:1:C",
+      "data_type": "AB:5000_DI32:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:1:I",
+      "data_type": "AB:5000_DI32:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:2:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:2:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:3:C",
+      "data_type": "AB:5000_DO32_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:3:I",
+      "data_type": "AB:5000_DO32_Diag:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:3:O",
+      "data_type": "AB:5000_DO32:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:4:I",
+      "data_type": "AB:5000_SDO16:I:1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:4:O",
+      "data_type": "AB:5000_SDO16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:5:I",
+      "data_type": "AB:5000_SDO16:I:1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:5:O",
+      "data_type": "AB:5000_SDO16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:6:C",
+      "data_type": "AB:5000_AI8:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:6:I",
+      "data_type": "AB:5000_AI8:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:6:O",
+      "data_type": "AB:5000_AI8:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:C",
+      "data_type": "AB:5000_AENTR_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "REMOTA_CCM:S",
+      "data_type": "AB:5094_EN2_DLR_FT:S:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Read_Code_String",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:1:C",
+      "data_type": "AB:5000_DI32:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:1:I",
+      "data_type": "AB:5000_DI32:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:2:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:2:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:3:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:3:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:4:C",
+      "data_type": "AB:5000_DO32_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:4:I",
+      "data_type": "AB:5000_DO32_Diag:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:4:O",
+      "data_type": "AB:5000_DO32:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:5:I",
+      "data_type": "AB:5000_SDO16:I:1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:5:O",
+      "data_type": "AB:5000_SDO16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:C",
+      "data_type": "AB:5000_AENTR_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_1:S",
+      "data_type": "AB:5094_EN2_DLR_FT:S:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:1:C",
+      "data_type": "AB:5000_DI32:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:1:I",
+      "data_type": "AB:5000_DI32:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:2:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:2:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:3:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:3:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:4:C",
+      "data_type": "AB:5000_DO32_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:4:I",
+      "data_type": "AB:5000_DO32_Diag:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:4:O",
+      "data_type": "AB:5000_DO32:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:5:I",
+      "data_type": "AB:5000_SDO16:I:1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:5:O",
+      "data_type": "AB:5000_SDO16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:6:C",
+      "data_type": "AB:5000_AI8:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:6:I",
+      "data_type": "AB:5000_AI8:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:6:O",
+      "data_type": "AB:5000_AI8:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:C",
+      "data_type": "AB:5000_AENTR_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_3:S",
+      "data_type": "AB:5094_EN2_DLR_FT:S:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:1:C",
+      "data_type": "AB:5000_DI32:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:1:I",
+      "data_type": "AB:5000_DI32:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:2:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:2:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:3:C",
+      "data_type": "AB:5000_DO32_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:3:I",
+      "data_type": "AB:5000_DO32_Diag:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:3:O",
+      "data_type": "AB:5000_DO32:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:4:C",
+      "data_type": "AB:5000_HSC2_CC:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:4:I",
+      "data_type": "AB:5000_HSC2:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:4:O",
+      "data_type": "AB:5000_HSC2_DDDDDDDD:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:C",
+      "data_type": "AB:5000_AENTR_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_4:S",
+      "data_type": "AB:5094_EN2_DLR_FT:S:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:1:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:1:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:2:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:2:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:3:I",
+      "data_type": "AB:5000_SDI16:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:3:O",
+      "data_type": "AB:5000_SDI16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:4:I",
+      "data_type": "AB:5000_SDO16:I:1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:4:O",
+      "data_type": "AB:5000_SDO16:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:C",
+      "data_type": "AB:5000_AENTR_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_5:S",
+      "data_type": "AB:5094_EN2_DLR_FT:S:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:1:C",
+      "data_type": "AB:5000_DI32:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:1:I",
+      "data_type": "AB:5000_DI32:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:2:C",
+      "data_type": "AB:5000_HSC2_CC:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:2:I",
+      "data_type": "AB:5000_HSC2:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:2:O",
+      "data_type": "AB:5000_HSC2_DDDDDDDD:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:3:C",
+      "data_type": "AB:5000_HSC2_CC:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:3:I",
+      "data_type": "AB:5000_HSC2:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:3:O",
+      "data_type": "AB:5000_HSC2_DDDDDDDD:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:4:C",
+      "data_type": "AB:5000_HSC2_CC:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:4:I",
+      "data_type": "AB:5000_HSC2:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:4:O",
+      "data_type": "AB:5000_HSC2_DDDDDDDD:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:5:C",
+      "data_type": "AB:5000_HSC2_CC:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:5:I",
+      "data_type": "AB:5000_HSC2:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:5:O",
+      "data_type": "AB:5000_HSC2_DDDDDDDD:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:C",
+      "data_type": "AB:5000_AENTR_Diag:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Remota_6:S",
+      "data_type": "AB:5094_EN2_DLR_FT:S:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Retardo_da_CCW",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Retardo_da_CW",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S10_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S1_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S1_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S2_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S2_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S3_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S4_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S50_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S50_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S51_MINSTER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S51_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S52_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S53_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S54_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S5_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S60_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S61_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S62_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S6_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S7_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S8_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "S9_UNCOILER",
+      "data_type": "DISCRETE_SAFETY_UDT",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SEGUNDO_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "SYSTEM",
+      "data_type": "INT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Segundo_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Segundo_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Shift_Bobina",
+      "data_type": "CONTROL",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soft_Diameter_Value",
+      "data_type": "Speed_Ramp_V1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soft_Loop_Value",
+      "data_type": "Speed_Ramp_V1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soprador_Aux:I",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soprador_Aux:O",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soprador_Princ:I",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Soprador_Princ:O",
+      "data_type": "AB:PowerFlex525V_EENET_Drive:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Speed_Ramp_Mandrel",
+      "data_type": "Speed_Ramp_V1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Start_Ramp_Mandrel",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "String_Aux_OT_HFI",
+      "data_type": "STRING",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "String_Empty",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "String_Zero",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Stroke_Cod_Barras_Bobina",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Stroke_Cod_Barras_Bobina_Buffer",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TEMPO_PORTA_ABERTA",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TEMPO_PORTA_ABERTA_2",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TEMPO_TROCA_DE_BOBINA",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TIMERS",
+      "data_type": "TIMER",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TIMER_END_MATERIAL_LUBRFICATOR",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TIMESTAMP_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TIMESTAMP_SYSTEM_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TMR_OEE",
+      "data_type": "TIMER",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TON_AUX_COIL_ID",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TON_AUX_COIL_ID1",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TON_AUX_COIL_ID2",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TON_AUX_COIL_ID3",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TON_Falha_Code",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "TON_Peso_Liq_HFI",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "T_DELAY_ETIQUETAS",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Temp_Delay_TrocaBobina",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Tempo_Reversao",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Tempo_Reversao1",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Tempo_Reversao_2",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Tempo_Reversao_3",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Time",
+      "data_type": "Time1",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Time_Change_Coil",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Time_Troca_Bobina",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Time_teste_diametro_bobina",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Timer_Blink_off",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Timer_Blink_on",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Timer_To_Start_Lubricador",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Timer_Troca_Descarrega",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "Timer_selo",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNC1_IOL71_IO_LINK:C",
+      "data_type": "AB:1732_8IOL1:C:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNC1_IOL71_IO_LINK:I",
+      "data_type": "AB:1732_8IOL86DDD9F0:I:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNC1_IOL71_IO_LINK:O",
+      "data_type": "AB:1732_8IOL896883CE:O:0",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNC1_LockpinUp",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "UNC1_SlewTimer",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "WeightCoil_Old",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "ZERO_ST",
+      "data_type": "STRING",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "consumo_de_ar",
+      "data_type": "SCP",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "cont_teste",
+      "data_type": "COUNTER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "contador_de_bobina_em_metros",
+      "data_type": "COUNTER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "falha3",
+      "data_type": "TIMER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "relogio",
+      "data_type": "DINT",
+      "dim": 1,
+      "external_access": "Read/Write"
+    },
+    {
+      "tag_name": "will_counter",
+      "data_type": "COUNTER",
+      "dim": 0,
+      "external_access": "Read/Write"
+    }
+  ]
+}

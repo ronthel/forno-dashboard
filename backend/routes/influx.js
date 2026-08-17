@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { InfluxDBClient } = require('@influxdata/influxdb3-client');
+const db = require('../db');
 
 const hostUrl = process.env.INFLUX_URL || 'http://localhost:8181';
 const formattedHost = hostUrl.startsWith('http') ? hostUrl : `http://${hostUrl}`;
@@ -11,7 +12,37 @@ const influxDB = new InfluxDBClient({
   database: process.env.INFLUX_BUCKET
 });
 
-const VALID_FIELDS = ["CTC", "CTP01", "CTP02", "CTP03", "CTP04", "CTP05", "CTP06", "CTQ", "CTV", "teste","RUN_TIME_SEC", "TOTAL_COUNT", "GOOD_COUNT", "ALARM_COUNT"];
+// Lista de variáveis válidas antes vinha de um array fixo no código — agora
+// vem do PostgreSQL (sensores_config.ativo = TRUE), para a tela de
+// Configuração de Variáveis poder criar/desativar variáveis sem precisar
+// alterar código. Fica em cache por alguns segundos (cada consulta a
+// /metric ou /metrics chamava isso antes) e, se o PostgreSQL falhar, usamos
+// a última lista boa conhecida em vez de derrubar as rotas de leitura do
+// dashboard.
+const FALLBACK_FIELDS = ["CTC", "CTP01", "CTP02", "CTP03", "CTP04", "CTP05", "CTP06", "CTQ", "CTV", "RUN_TIME_SEC", "TOTAL_COUNT", "GOOD_COUNT", "ALARM_COUNT"];
+const VALID_FIELDS_CACHE_MS = 15000;
+let validFieldsCache = { fields: FALLBACK_FIELDS, fetchedAt: 0 };
+
+async function getValidFields() {
+  const now = Date.now();
+  if (now - validFieldsCache.fetchedAt < VALID_FIELDS_CACHE_MS) {
+    return validFieldsCache.fields;
+  }
+  try {
+    const result = await db.query('SELECT field_name FROM sensores_config WHERE ativo = TRUE ORDER BY field_name');
+    const fields = result.rows.map((r) => r.field_name);
+    if (fields.length > 0) {
+      validFieldsCache = { fields, fetchedAt: now };
+      return fields;
+    }
+    // Nenhuma variável ativa cadastrada ainda (ex.: banco recém-criado) —
+    // usa o fallback em vez de zerar todas as rotas de leitura.
+    return validFieldsCache.fields;
+  } catch (err) {
+    console.error('Erro ao buscar variáveis ativas no PostgreSQL, usando última lista conhecida:', err.message);
+    return validFieldsCache.fields;
+  }
+}
 
 const RANGE_TO_INTERVAL = {
   '1h': '1 hour',
@@ -43,15 +74,16 @@ function buildWhereClause({ range, startDate, endDate }) {
   return `WHERE time >= NOW() - INTERVAL '${selectedInterval}'`;
 }
 
-router.get('/fields', (req, res) => {
-  res.json(VALID_FIELDS);
+router.get('/fields', async (req, res) => {
+  res.json(await getValidFields());
 });
 
 router.get('/metric', async (req, res) => {
   const { field, range, startDate, endDate } = req.query;
   const targetField = field || 'CTP01';
+  const validFields = await getValidFields();
 
-  if (!VALID_FIELDS.includes(targetField)) {
+  if (!validFields.includes(targetField)) {
     return res.json([]);
   }
 
@@ -106,7 +138,8 @@ router.get('/metric', async (req, res) => {
 router.get('/metrics', async (req, res) => {
   const { fields, range, startDate, endDate } = req.query;
   const requestedFields = (fields || '').split(',').map((f) => f.trim()).filter(Boolean);
-  const validFields = requestedFields.filter((f) => VALID_FIELDS.includes(f));
+  const allValidFields = await getValidFields();
+  const validFields = requestedFields.filter((f) => allValidFields.includes(f));
 
   if (validFields.length === 0) {
     return res.json([]);

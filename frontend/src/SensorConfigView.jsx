@@ -1,23 +1,41 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api, { isOk } from './api';
-import { Home, Save, Sliders, Database, Check, Layers, Palette } from 'lucide-react';
+import {
+  Home, Save, Sliders, Database, Check, Layers, Palette,
+  Plus, Trash2, RotateCcw, Search, Loader2, X, AlertTriangle
+} from 'lucide-react';
+
+const DEFAULT_CONFIG_FOR = (field) => ({
+  descricao: `Sensor ${field}`,
+  unidade: '°C',
+  minLimit: 0,
+  maxLimit: 100,
+  cor: '#38bdf8',
+  fatorCorrecao: 1.0,
+  tipoAlarme: 'Aviso'
+});
 
 export default function SensorConfigView({ onBack }) {
   const [availableFields, setAvailableFields] = useState([]);
   const [selectedField, setSelectedField] = useState('');
   const [sensorConfigs, setSensorConfigs] = useState({});
-  
-  const [currentConfig, setCurrentConfig] = useState({
-    descricao: '',
-    unidade: '°C',
-    minLimit: 0,
-    maxLimit: 100,
-    cor: '#38bdf8',
-    fatorCorrecao: 1.0,
-    tipoAlarme: 'Aviso'
-  });
+
+  const [currentConfig, setCurrentConfig] = useState(DEFAULT_CONFIG_FOR(''));
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [actionError, setActionError] = useState('');
+
+  // --- Exclusão (soft-delete / desativação) ---
+  const [confirmDeleteField, setConfirmDeleteField] = useState(null);
+  const [busyField, setBusyField] = useState(null);
+
+  // --- Painel "Adicionar nova variável" ---
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const [plcSearch, setPlcSearch] = useState('');
+  const [plcTags, setPlcTags] = useState(null); // null = ainda não carregado
+  const [plcTagsLoading, setPlcTagsLoading] = useState(false);
+  const [plcTagsError, setPlcTagsError] = useState('');
+  const [manualFieldName, setManualFieldName] = useState('');
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -28,13 +46,16 @@ export default function SensorConfigView({ onBack }) {
 
       const fieldsData = fieldsRes && isOk(fieldsRes) ? fieldsRes.data : [];
       const configsData = configsRes && isOk(configsRes) ? configsRes.data : {};
-
-      let fields = Array.isArray(fieldsData) ? fieldsData : [];
       const configs = configsData || {};
 
-      if (fields.length === 0 && Object.keys(configs).length > 0) {
-        fields = Object.keys(configs);
-      }
+      // A lista de variáveis exibidas junta: tudo que já tem configuração
+      // salva no PostgreSQL (ativas OU desativadas, para mostrar as duas
+      // seções) + qualquer campo ativo que por algum motivo ainda não tenha
+      // uma linha em sensores_config.
+      const known = new Set(Object.keys(configs));
+      (Array.isArray(fieldsData) ? fieldsData : []).forEach((f) => known.add(f));
+      let fields = Array.from(known);
+
       if (fields.length === 0) {
         fields = ['CTP01', 'CTC'];
       }
@@ -42,13 +63,11 @@ export default function SensorConfigView({ onBack }) {
       setAvailableFields(fields);
       setSensorConfigs(configs);
 
-      if (fields.length > 0 && !selectedField) {
-        setSelectedField(fields[0]);
-      }
+      setSelectedField((prev) => (prev && fields.includes(prev) ? prev : (fields[0] || '')));
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     }
-  }, [selectedField]);
+  }, []);
 
   useEffect(() => {
     fetchConfig();
@@ -58,32 +77,21 @@ export default function SensorConfigView({ onBack }) {
     if (selectedField && sensorConfigs[selectedField]) {
       setCurrentConfig(sensorConfigs[selectedField]);
     } else if (selectedField) {
-      setCurrentConfig({
-        descricao: `Sensor ${selectedField}`,
-        unidade: '°C',
-        minLimit: 0,
-        maxLimit: 100,
-        cor: '#38bdf8',
-        fatorCorrecao: 1.0,
-        tipoAlarme: 'Aviso'
-      });
+      setCurrentConfig(DEFAULT_CONFIG_FOR(selectedField));
     }
   }, [selectedField, sensorConfigs]);
 
+  const isFieldActive = (field) => sensorConfigs[field]?.ativo !== false;
+  const activeFields = availableFields.filter(isFieldActive);
+  const inactiveFields = availableFields.filter((f) => !isFieldActive(f));
+
   const handleSelectField = (field) => {
     setSelectedField(field);
+    setConfirmDeleteField(null);
     if (sensorConfigs[field]) {
       setCurrentConfig(sensorConfigs[field]);
     } else {
-      setCurrentConfig({
-        descricao: `Sensor ${field}`,
-        unidade: '°C',
-        minLimit: 0,
-        maxLimit: 100,
-        cor: '#38bdf8',
-        fatorCorrecao: 1.0,
-        tipoAlarme: 'Aviso'
-      });
+      setCurrentConfig(DEFAULT_CONFIG_FOR(field));
     }
   };
 
@@ -93,25 +101,131 @@ export default function SensorConfigView({ onBack }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    setActionError('');
     const updated = {
       ...sensorConfigs,
       [selectedField]: currentConfig
     };
-    
+
     try {
       const res = await api.post('/api/config/sensores', updated);
 
       if (isOk(res)) {
-        setSensorConfigs(updated);
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
         await fetchConfig();
       } else {
-        console.error('Erro ao salvar sensor: sem permissão ou sessão expirada.');
+        setActionError(res.data?.error || 'Erro ao salvar sensor: sem permissão ou sessão expirada.');
       }
     } catch (err) {
       console.error('Erro ao salvar no banco:', err);
+      setActionError('Erro ao salvar no banco.');
     }
+  };
+
+  // --- Desativar / Reativar ---
+  const handleDeactivate = async (field) => {
+    setBusyField(field);
+    setActionError('');
+    try {
+      const res = await api.put(`/api/config/sensores/${encodeURIComponent(field)}/desativar`);
+      if (isOk(res)) {
+        setConfirmDeleteField(null);
+        await fetchConfig();
+      } else {
+        setActionError(res.data?.error || `Erro ao desativar "${field}".`);
+      }
+    } catch (err) {
+      setActionError(`Erro ao desativar "${field}".`);
+    } finally {
+      setBusyField(null);
+    }
+  };
+
+  const handleReactivate = async (field) => {
+    setBusyField(field);
+    setActionError('');
+    try {
+      const res = await api.put(`/api/config/sensores/${encodeURIComponent(field)}/reativar`);
+      if (isOk(res)) {
+        await fetchConfig();
+      } else {
+        setActionError(res.data?.error || `Erro ao reativar "${field}".`);
+      }
+    } catch (err) {
+      setActionError(`Erro ao reativar "${field}".`);
+    } finally {
+      setBusyField(null);
+    }
+  };
+
+  // --- Descoberta de tags do PLC ---
+  const loadPlcTags = useCallback(async () => {
+    setPlcTagsLoading(true);
+    setPlcTagsError('');
+    try {
+      const res = await api.get('/api/plc/tags');
+      if (isOk(res)) {
+        setPlcTags(Array.isArray(res.data?.atomic_scalar) ? res.data.atomic_scalar : []);
+      } else {
+        setPlcTagsError(res.data?.error || 'Não foi possível consultar as tags do PLC.');
+        setPlcTags([]);
+      }
+    } catch (err) {
+      setPlcTagsError('Não foi possível consultar as tags do PLC.');
+      setPlcTags([]);
+    } finally {
+      setPlcTagsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showAddPanel && plcTags === null && !plcTagsLoading) {
+      loadPlcTags();
+    }
+  }, [showAddPanel, plcTags, plcTagsLoading, loadPlcTags]);
+
+  // Com centenas de tags de simulação misturadas às poucas tags reais do
+  // forno, só mostramos resultado depois de pelo menos 2 caracteres
+  // digitados, e limitamos a lista para não virar uma parede de texto.
+  const searchTerm = plcSearch.trim().toLowerCase();
+  const filteredPlcTags = searchTerm.length < 2
+    ? []
+    : (plcTags || [])
+        .filter((t) => t.tag_name.toLowerCase().includes(searchTerm))
+        .filter((t) => !availableFields.includes(t.tag_name))
+        .slice(0, 30);
+
+  const openNewFieldForm = (fieldName) => {
+    if (!availableFields.includes(fieldName)) {
+      setAvailableFields((prev) => [...prev, fieldName]);
+    }
+    setSelectedField(fieldName);
+    setCurrentConfig(DEFAULT_CONFIG_FOR(fieldName));
+    setShowAddPanel(false);
+    setPlcSearch('');
+    setManualFieldName('');
+    setActionError('');
+  };
+
+  const handlePickPlcTag = (tagName) => {
+    openNewFieldForm(tagName);
+  };
+
+  const handleManualAdd = () => {
+    const name = manualFieldName.trim();
+    if (!name) return;
+    if (availableFields.includes(name)) {
+      setActionError(`A variável "${name}" já existe na lista.`);
+      return;
+    }
+    openNewFieldForm(name);
+  };
+
+  const closeAddPanel = () => {
+    setShowAddPanel(false);
+    setPlcSearch('');
+    setManualFieldName('');
   };
 
   return (
@@ -133,34 +247,117 @@ export default function SensorConfigView({ onBack }) {
         </div>
       </div>
 
+      {actionError && (
+        <div className="max-w-6xl mx-auto w-full mt-4 flex items-center gap-2 bg-red-900/40 border border-red-700 text-red-200 text-xs rounded-lg px-4 py-2">
+          <AlertTriangle size={14} />
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError('')} className="ml-auto text-red-300 hover:text-white">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 my-auto max-w-6xl mx-auto w-full">
         {/* Coluna Esquerda: Lista de Variáveis */}
         <div className="lg:col-span-4 bg-slate-800/90 border border-slate-700 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
-          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2 border-b border-slate-700 pb-3">
-            <Database size={16} className="text-amber-400" /> Variáveis Disponíveis
-          </h2>
+          <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+              <Database size={16} className="text-amber-400" /> Variáveis
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowAddPanel(true)}
+              className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition shadow"
+            >
+              <Plus size={14} /> Nova
+            </button>
+          </div>
 
           <div className="flex flex-col gap-2 overflow-y-auto max-h-[350px] pr-1">
-            {availableFields.length === 0 ? (
-              <span className="text-slate-500 text-xs text-center py-4">Nenhuma variável encontrada</span>
+            {activeFields.length === 0 ? (
+              <span className="text-slate-500 text-xs text-center py-4">Nenhuma variável ativa</span>
             ) : (
-              availableFields.map((field) => (
-                <button
+              activeFields.map((field) => (
+                <div
                   key={field}
-                  type="button"
-                  onClick={() => handleSelectField(field)}
-                  className={`flex items-center justify-between p-3 rounded-xl text-left text-xs font-mono font-semibold transition border ${
+                  className={`flex items-center gap-1 rounded-xl border transition ${
                     selectedField === field
-                      ? 'bg-amber-600 text-white border-amber-500 shadow-md'
-                      : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-700/60'
+                      ? 'bg-amber-600 border-amber-500 shadow-md'
+                      : 'bg-slate-900/80 border-slate-700 hover:bg-slate-700/60'
                   }`}
                 >
-                  <span>{field}</span>
-                  <span className="text-[10px] opacity-75 uppercase">{sensorConfigs[field] ? 'Configurado' : 'Padrão'}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectField(field)}
+                    className={`flex-1 flex items-center justify-between p-3 text-left text-xs font-mono font-semibold ${
+                      selectedField === field ? 'text-white' : 'text-slate-300'
+                    }`}
+                  >
+                    <span>{field}</span>
+                    <span className="text-[10px] opacity-75 uppercase">{sensorConfigs[field] ? 'Configurado' : 'Padrão'}</span>
+                  </button>
+
+                  {confirmDeleteField === field ? (
+                    <div className="flex items-center gap-1 pr-2">
+                      <button
+                        type="button"
+                        title="Confirmar desativação"
+                        disabled={busyField === field}
+                        onClick={() => handleDeactivate(field)}
+                        className="text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded-lg disabled:opacity-50"
+                      >
+                        {busyField === field ? <Loader2 size={12} className="animate-spin" /> : 'Confirmar'}
+                      </button>
+                      <button
+                        type="button"
+                        title="Cancelar"
+                        onClick={() => setConfirmDeleteField(null)}
+                        className="text-slate-300 hover:text-white p-1"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      title="Desativar variável (para de monitorar, mantém o histórico)"
+                      onClick={() => setConfirmDeleteField(field)}
+                      className={`p-2 mr-1 rounded-lg transition ${
+                        selectedField === field ? 'text-white/80 hover:bg-red-700/60' : 'text-slate-500 hover:text-red-400 hover:bg-slate-700'
+                      }`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               ))
             )}
           </div>
+
+          {inactiveFields.length > 0 && (
+            <div className="border-t border-slate-700 pt-3 flex flex-col gap-2">
+              <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Desativadas</h3>
+              <div className="flex flex-col gap-2 overflow-y-auto max-h-[140px] pr-1">
+                {inactiveFields.map((field) => (
+                  <div
+                    key={field}
+                    className="flex items-center justify-between gap-2 bg-slate-900/50 border border-slate-800 rounded-xl p-2.5"
+                  >
+                    <span className="text-xs font-mono text-slate-500">{field}</span>
+                    <button
+                      type="button"
+                      disabled={busyField === field}
+                      onClick={() => handleReactivate(field)}
+                      className="flex items-center gap-1 text-[10px] font-bold bg-slate-700 hover:bg-emerald-700 text-slate-200 hover:text-white px-2 py-1 rounded-lg transition disabled:opacity-50"
+                    >
+                      {busyField === field ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+                      Reativar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Coluna Direita: Formulário */}
@@ -251,7 +448,8 @@ export default function SensorConfigView({ onBack }) {
           <div className="flex justify-end gap-3 pt-5 mt-5 border-t border-slate-700">
             <button
               type="submit"
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition shadow-lg ${
+              disabled={!selectedField}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition shadow-lg disabled:opacity-50 ${
                 savedSuccess ? 'bg-emerald-600 text-white' : 'bg-amber-600 hover:bg-amber-500 text-white'
               }`}
             >
@@ -265,6 +463,93 @@ export default function SensorConfigView({ onBack }) {
       <div className="text-center text-slate-500 text-xs pb-2">
         Forno Industrial Dashboard — Módulo de Configuração de Variáveis v1.0
       </div>
+
+      {/* Painel: Adicionar nova variável (busca de tags do PLC) */}
+      {showAddPanel && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+              <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                <Plus size={16} /> Nova Variável
+              </h3>
+              <button type="button" onClick={closeAddPanel} className="text-slate-400 hover:text-white">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 flex flex-col gap-4 overflow-y-auto">
+              <p className="text-slate-400 text-xs">
+                Busque pelo nome da tag já existente no PLC (Studio 5000). Como o controlador tem muitas
+                tags que não são do forno, digite ao menos 2 letras para ver os resultados.
+              </p>
+
+              <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2">
+                <Search size={16} className="text-slate-500" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={plcSearch}
+                  onChange={(e) => setPlcSearch(e.target.value)}
+                  placeholder="Buscar tag no PLC (ex: CTP, TEMP...)"
+                  className="bg-transparent flex-1 text-sm text-slate-100 focus:outline-none"
+                />
+                {plcTagsLoading && <Loader2 size={16} className="text-slate-500 animate-spin" />}
+              </div>
+
+              {plcTagsError ? (
+                <div className="text-xs text-amber-300 bg-amber-900/30 border border-amber-800 rounded-lg p-3">
+                  {plcTagsError} Você ainda pode cadastrar a variável digitando o nome manualmente abaixo.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1 max-h-[220px] overflow-y-auto">
+                  {searchTerm.length < 2 ? (
+                    <span className="text-slate-500 text-xs text-center py-3">Digite para buscar entre as tags do PLC...</span>
+                  ) : plcTagsLoading ? (
+                    <span className="text-slate-500 text-xs text-center py-3">Carregando tags do PLC...</span>
+                  ) : filteredPlcTags.length === 0 ? (
+                    <span className="text-slate-500 text-xs text-center py-3">Nenhuma tag encontrada para "{plcSearch}".</span>
+                  ) : (
+                    filteredPlcTags.map((tag) => (
+                      <button
+                        key={tag.tag_name}
+                        type="button"
+                        onClick={() => handlePickPlcTag(tag.tag_name)}
+                        className="flex items-center justify-between text-left bg-slate-900/70 hover:bg-amber-600/90 hover:text-white border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 transition"
+                      >
+                        <span>{tag.tag_name}</span>
+                        <span className="text-[10px] opacity-70 uppercase">{tag.data_type}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <div className="border-t border-slate-700 pt-4 flex flex-col gap-2">
+                <label className="text-slate-400 text-xs font-semibold">
+                  Ou, se souber o nome exato da tag (útil se a lista do PLC não estiver disponível agora):
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualFieldName}
+                    onChange={(e) => setManualFieldName(e.target.value)}
+                    placeholder="Nome exato da tag no PLC"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 text-sm font-mono focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleManualAdd}
+                    disabled={!manualFieldName.trim()}
+                    className="bg-slate-700 hover:bg-amber-600 text-slate-100 hover:text-white text-xs font-bold px-3 py-2 rounded-lg transition disabled:opacity-40"
+                  >
+                    Usar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

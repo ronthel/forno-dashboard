@@ -11,7 +11,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  ReferenceLine,
   ReferenceArea
 } from 'recharts';
 
@@ -442,13 +441,6 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
         </div>
       </div>
 
-      {isSingleField && (
-        <div className="flex gap-3 mb-2 bg-slate-900/60 px-2 py-1 rounded border border-slate-700/50 text-[11px] font-mono">
-          <span className="text-blue-400">Mín: {seriesMeta[0].minLimit} {seriesMeta[0].unidade}</span>
-          <span className="text-red-400">Máx: {seriesMeta[0].maxLimit} {seriesMeta[0].unidade}</span>
-        </div>
-      )}
-
       {/* Checkboxes de habilitar/desabilitar "penas" (séries) — o nome de
           cada variável aparece só aqui (não repetido no topo do card),
           com o valor atual dela logo em seguida. */}
@@ -518,13 +510,6 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
                 }}
                 contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', fontSize: '11px' }}
               />
-
-              {isSingleField && (
-                <>
-                  <ReferenceLine y={seriesMeta[0].maxLimit} stroke="#ef4444" strokeDasharray="5 5" strokeWidth={2} label={{ value: 'MÁX', fill: '#ef4444', fontSize: 8, position: 'insideTopRight' }} />
-                  <ReferenceLine y={seriesMeta[0].minLimit} stroke="#3b82f6" strokeDasharray="5 5" strokeWidth={2} label={{ value: 'MÍN', fill: '#3b82f6', fontSize: 8, position: 'insideBottomRight' }} />
-                </>
-              )}
 
               {seriesMeta.map((s) => (
                 <Line
