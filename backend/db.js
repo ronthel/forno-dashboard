@@ -16,7 +16,7 @@ const pool = new Pool({
   port: process.env.POSTGRES_PORT || 5432,
 });
 
-// Inicializa tabelas de usuários/autenticação
+// Inicializa tabelas de usuários/autenticação e de auditoria
 const initDb = async () => {
   const queryText = `
     CREATE TABLE IF NOT EXISTS users (
@@ -26,16 +26,35 @@ const initDb = async () => {
       role VARCHAR(20) DEFAULT 'operador'
     );
 
+    -- Força o usuário a trocar a senha no próximo login. Usado para contas
+    -- criadas por um administrador (a senha inicial foi escolhida por outra
+    -- pessoa, então por segurança o dono da conta precisa defini-la de novo).
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+
     CREATE TABLE IF NOT EXISTS dashboards (
       id SERIAL PRIMARY KEY,
       user_id INT REFERENCES users(id) ON DELETE CASCADE,
       config JSONB NOT NULL,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- Trilha de auditoria: uma linha por alteração feita no sistema (quem,
+    -- quando, o quê). "username"/"role" ficam gravados como uma cópia do
+    -- momento da ação (não uma referência viva a "users") — assim o
+    -- histórico continua legível mesmo que o usuário seja excluído depois.
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id SERIAL PRIMARY KEY,
+      user_id INT,
+      username VARCHAR(50) NOT NULL,
+      role VARCHAR(20),
+      action VARCHAR(150) NOT NULL,
+      details JSONB,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `;
   try {
     await pool.query(queryText);
-    console.log('[PostgreSQL] Tabelas de usuários prontas.');
+    console.log('[PostgreSQL] Tabelas de usuários e auditoria prontas.');
   } catch (err) {
     console.error('[PostgreSQL] Erro ao inicializar tabelas de usuários:', err.message);
   }

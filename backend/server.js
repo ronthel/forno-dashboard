@@ -49,6 +49,22 @@ const influxDB = new InfluxDBClient({
 
 // Conexão única com o PostgreSQL, compartilhada com routes/auth.js (ver db.js)
 const db = require('./db');
+const { logAudit } = require('./audit');
+
+// Extrai o usuário do token, se houver — usado só para IDENTIFICAR quem fez
+// uma ação em rotas que continuam abertas de propósito (ex.: salvar layout),
+// não para bloquear o acesso. Se não houver token válido, retorna null e a
+// ação segue normalmente, só sem um autor identificado no log de auditoria.
+const getUserFromRequest = (req) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return null;
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    return null;
+  }
+};
 
 // Criar tabelas no PostgreSQL ao iniciar
 async function initPostgres() {
@@ -69,6 +85,20 @@ async function initPostgres() {
         limit_value NUMERIC NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Ciclo de vida do alarme: ATIVO (condição ainda fora da faixa) até
+      -- NORMALIZADO (valor voltou ao normal), com reconhecimento (quem e
+      -- quando) independente disso — um alarme pode estar ativo e já
+      -- reconhecido, ativo e não reconhecido, ou normalizado.
+      ALTER TABLE alarm_history ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'ATIVO';
+      ALTER TABLE alarm_history ADD COLUMN IF NOT EXISTS acknowledged BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE alarm_history ADD COLUMN IF NOT EXISTS acknowledged_by VARCHAR(50);
+      ALTER TABLE alarm_history ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMP;
+      ALTER TABLE alarm_history ADD COLUMN IF NOT EXISTS cleared_at TIMESTAMP;
+      -- Só preenchido quando o alarme foi normalizado manualmente por um
+      -- supervisor/administrador na Central de Alarmes (não pelo próprio
+      -- sistema detectando o valor de volta à faixa).
+      ALTER TABLE alarm_history ADD COLUMN IF NOT EXISTS cleared_by VARCHAR(50);
 
       CREATE TABLE IF NOT EXISTS turnos_config (
         turno_key VARCHAR(50) PRIMARY KEY,
@@ -123,6 +153,19 @@ app.post('/api/dashboard/layout', async (req, res) => {
       "INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ('default_user', $1)",
       [JSON.stringify(charts)]
     );
+
+    // Rota aberta de propósito (sem exigir login) — se mesmo assim vier um
+    // token válido (caso normal, já que só a tela logada chama isso), usamos
+    // ele só para identificar o autor no log de auditoria.
+    const user = getUserFromRequest(req);
+    logAudit({
+      userId: user?.id,
+      username: user?.username,
+      role: user?.role,
+      action: 'salvou layout do dashboard',
+      details: { totalGraficos: Array.isArray(charts) ? charts.length : 0 }
+    });
+
     res.json({ message: 'Layout salvo!' });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao salvar layout' });
@@ -149,18 +192,55 @@ app.get('/api/config/turnos', async (req, res) => {
   }
 });
 
+const TURNO_FIELD_LABELS = { nome: 'nome', inicio: 'início', fim: 'fim', metaOee: 'meta OEE' };
+
 app.post('/api/config/turnos', requireRole(['supervisor', 'administrador']), async (req, res) => {
   try {
     const turnos = req.body;
+
+    // Busca os valores atuais ANTES de sobrescrever, para poder registrar na
+    // auditoria exatamente o que mudou (de → para), não só que "algo mudou".
+    const previousRes = await db.query('SELECT * FROM turnos_config');
+    const previousByKey = {};
+    previousRes.rows.forEach((row) => {
+      previousByKey[row.turno_key] = {
+        nome: row.nome,
+        inicio: row.hora_inicio,
+        fim: row.hora_fim,
+        metaOee: Number(row.meta_oee)
+      };
+    });
+
     for (const [key, val] of Object.entries(turnos)) {
       await db.query(
-        `INSERT INTO turnos_config (turno_key, nome, hora_inicio, hora_fim, meta_oee) 
+        `INSERT INTO turnos_config (turno_key, nome, hora_inicio, hora_fim, meta_oee)
          VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (turno_key) DO UPDATE 
+         ON CONFLICT (turno_key) DO UPDATE
          SET nome = EXCLUDED.nome, hora_inicio = EXCLUDED.hora_inicio, hora_fim = EXCLUDED.hora_fim, meta_oee = EXCLUDED.meta_oee`,
         [key, val.nome, val.inicio, val.fim, val.metaOee]
       );
     }
+
+    const alteracoes = [];
+    for (const [key, val] of Object.entries(turnos)) {
+      const prev = previousByKey[key];
+      for (const field of Object.keys(TURNO_FIELD_LABELS)) {
+        const oldVal = prev ? prev[field] : undefined;
+        const newVal = val[field];
+        if (String(oldVal) !== String(newVal)) {
+          alteracoes.push(`${key}.${TURNO_FIELD_LABELS[field]}: ${oldVal ?? '(vazio)'} → ${newVal}`);
+        }
+      }
+    }
+
+    logAudit({
+      userId: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
+      action: 'atualizou configuração de turnos',
+      details: { alteracoes: alteracoes.length > 0 ? alteracoes : ['nenhum valor alterado'] }
+    });
+
     res.json({ success: true, message: 'Turnos salvos com sucesso no PostgreSQL!' });
   } catch (err) {
     console.error('Erro ao salvar turnos:', err);
@@ -191,19 +271,67 @@ app.get('/api/config/sensores', async (req, res) => {
   }
 });
 
+const SENSOR_FIELD_LABELS = {
+  descricao: 'descrição',
+  unidade: 'unidade',
+  minLimit: 'limite mínimo',
+  maxLimit: 'limite máximo',
+  cor: 'cor',
+  fatorCorrecao: 'fator de correção',
+  tipoAlarme: 'tipo de alarme'
+};
+
 app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), async (req, res) => {
   try {
     const sensores = req.body;
+
+    // Busca os valores atuais ANTES de sobrescrever, para poder registrar na
+    // auditoria exatamente o que mudou (de → para) em cada campo do sensor.
+    const previousRes = await db.query('SELECT * FROM sensores_config');
+    const previousByField = {};
+    previousRes.rows.forEach((row) => {
+      previousByField[row.field_name] = {
+        descricao: row.descricao,
+        unidade: row.unidade,
+        minLimit: row.min_limit !== null ? Number(row.min_limit) : null,
+        maxLimit: row.max_limit !== null ? Number(row.max_limit) : null,
+        cor: row.cor,
+        fatorCorrecao: row.fator_correcao !== null ? Number(row.fator_correcao) : null,
+        tipoAlarme: row.tipo_alarme
+      };
+    });
+
     for (const [key, val] of Object.entries(sensores)) {
       await db.query(
-        `INSERT INTO sensores_config (field_name, descricao, unidade, min_limit, max_limit, cor, fator_correcao, tipo_alarme) 
+        `INSERT INTO sensores_config (field_name, descricao, unidade, min_limit, max_limit, cor, fator_correcao, tipo_alarme)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (field_name) DO UPDATE 
-         SET descricao = EXCLUDED.descricao, unidade = EXCLUDED.unidade, min_limit = EXCLUDED.min_limit, 
+         ON CONFLICT (field_name) DO UPDATE
+         SET descricao = EXCLUDED.descricao, unidade = EXCLUDED.unidade, min_limit = EXCLUDED.min_limit,
              max_limit = EXCLUDED.max_limit, cor = EXCLUDED.cor, fator_correcao = EXCLUDED.fator_correcao, tipo_alarme = EXCLUDED.tipo_alarme`,
         [key, val.descricao, val.unidade, val.minLimit, val.maxLimit, val.cor, val.fatorCorrecao, val.tipoAlarme]
       );
     }
+
+    const alteracoes = [];
+    for (const [key, val] of Object.entries(sensores)) {
+      const prev = previousByField[key];
+      for (const field of Object.keys(SENSOR_FIELD_LABELS)) {
+        const oldVal = prev ? prev[field] : undefined;
+        const newVal = val[field];
+        if (String(oldVal) !== String(newVal)) {
+          alteracoes.push(`${key}.${SENSOR_FIELD_LABELS[field]}: ${oldVal ?? '(vazio)'} → ${newVal}`);
+        }
+      }
+    }
+
+    logAudit({
+      userId: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
+      action: 'atualizou configuração de sensores',
+      details: { alteracoes: alteracoes.length > 0 ? alteracoes : ['nenhum valor alterado'] }
+    });
+
     res.json({ success: true, message: 'Sensores salvos com sucesso no PostgreSQL!' });
   } catch (err) {
     console.error('Erro ao salvar sensores:', err);
@@ -212,29 +340,239 @@ app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), a
 });
 
 // --- ROTAS DE ALARMES ---
-app.post('/api/alarms', async (req, res) => {
+// Ciclo de vida: ATIVO -> NORMALIZADO, com reconhecimento independente disso.
+// "trigger" e "resolve" são chamados automaticamente pelo frontend
+// (ChartCard) só na borda de transição (quando o valor cruza o limite ou
+// volta pra dentro dele) — não a cada leitura — então não é preciso
+// deduplicar por tempo, só verificar se já existe um alarme ATIVO para
+// aquela variável (defesa contra corrida entre abas abertas ao mesmo tempo).
+
+app.post('/api/alarms/trigger', async (req, res) => {
   const { fieldName, valueRead, limitType, limitValue } = req.body;
+  if (!fieldName || valueRead === undefined || !limitType || limitValue === undefined) {
+    return res.status(400).json({ error: 'Dados incompletos para registrar o alarme.' });
+  }
   try {
-    await db.query(
-      `INSERT INTO alarm_history (field_name, value_read, limit_type, limit_value) VALUES ($1, $2, $3, $4)`,
+    const existing = await db.query(
+      `SELECT id FROM alarm_history WHERE field_name = $1 AND status = 'ATIVO' LIMIT 1`,
+      [fieldName]
+    );
+    if (existing.rows.length > 0) {
+      return res.json({ message: 'Já havia um alarme ativo para esta variável.', id: existing.rows[0].id });
+    }
+
+    const result = await db.query(
+      `INSERT INTO alarm_history (field_name, value_read, limit_type, limit_value, status)
+       VALUES ($1, $2, $3, $4, 'ATIVO') RETURNING id`,
       [fieldName, valueRead, limitType, limitValue]
     );
-    res.json({ message: 'Alarme registrado!' });
+
+    // Eventos de alarme (disparo/normalização/reconhecimento) ficam só na
+    // Central de Alarmes — não são replicados para a tela de Auditoria.
+    res.json({ message: 'Alarme registrado!', id: result.rows[0].id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Erro ao registrar alarme:', err.message);
+    res.status(500).json({ error: 'Erro ao registrar o alarme. Tente novamente.' });
   }
 });
 
-app.get('/api/alarms', async (req, res) => {
+app.post('/api/alarms/resolve', async (req, res) => {
+  const { fieldName } = req.body;
+  if (!fieldName) {
+    return res.status(400).json({ error: 'Variável não informada.' });
+  }
+  try {
+    await db.query(
+      `UPDATE alarm_history SET status = 'NORMALIZADO', cleared_at = CURRENT_TIMESTAMP
+       WHERE field_name = $1 AND status = 'ATIVO' RETURNING id`,
+      [fieldName]
+    );
+    res.json({ message: 'Alarme normalizado.' });
+  } catch (err) {
+    console.error('Erro ao normalizar alarme:', err.message);
+    res.status(500).json({ error: 'Erro ao normalizar o alarme.' });
+  }
+});
+
+// Reconhecer exige usuário logado (qualquer perfil) — é uma ação
+// operacional de chão de fábrica, não uma alteração de configuração, mas
+// precisa identificar quem reconheceu e quando.
+app.put('/api/alarms/:id/acknowledge', requireRole(['operador', 'supervisor', 'administrador']), async (req, res) => {
+  const { id } = req.params;
   try {
     const result = await db.query(
-      `SELECT id, field_name, value_read, limit_type, limit_value, 
-              TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI:SS') as formatted_date
-       FROM alarm_history ORDER BY id DESC LIMIT 50`
+      `UPDATE alarm_history SET acknowledged = TRUE, acknowledged_by = $1, acknowledged_at = CURRENT_TIMESTAMP
+       WHERE id = $2 RETURNING field_name, limit_type, value_read`,
+      [req.user.username, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Alarme não encontrado.' });
+    }
+    res.json({ message: 'Alarme reconhecido.' });
+  } catch (err) {
+    console.error('Erro ao reconhecer alarme:', err.message);
+    res.status(500).json({ error: 'Erro ao reconhecer o alarme.' });
+  }
+});
+
+// Normaliza manualmente um alarme que ficou ATIVO mesmo com o valor real já
+// dentro da faixa (ex.: gráfico removido do layout, ou uma sessão anterior
+// que nunca viu a transição de volta ao normal para reconciliar sozinha).
+// Restrito a supervisor/administrador, já que é uma correção manual do
+// estado do sistema, não uma ação de rotina de chão de fábrica.
+app.put('/api/alarms/:id/clear', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      `UPDATE alarm_history SET status = 'NORMALIZADO', cleared_at = CURRENT_TIMESTAMP, cleared_by = $1
+       WHERE id = $2 AND status = 'ATIVO' RETURNING field_name`,
+      [req.user.username, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Alarme não encontrado ou já normalizado.' });
+    }
+    res.json({ message: 'Alarme normalizado manualmente.' });
+  } catch (err) {
+    console.error('Erro ao normalizar alarme manualmente:', err.message);
+    res.status(500).json({ error: 'Erro ao normalizar o alarme.' });
+  }
+});
+
+// Consulta o histórico/estado dos alarmes — aberta a qualquer usuário
+// logado (visibilidade operacional, igual ao dashboard principal). Suporta
+// filtro por variável, status (aceita o status bruto ou os estados
+// combinados ATIVO_NAO_RECONHECIDO / ATIVO_RECONHECIDO / NORMALIZADO),
+// período e texto livre; ?activeOnly=true é o atalho usado pelo dashboard
+// principal para a barra de alarmes ativos e pelo contador do sininho.
+app.get('/api/alarms', async (req, res) => {
+  const { fieldName, status, startDate, endDate, search, limit, activeOnly } = req.query;
+  const conditions = [];
+  const values = [];
+  let idx = 1;
+
+  if (fieldName) {
+    conditions.push(`field_name ILIKE $${idx++}`);
+    values.push(`%${fieldName}%`);
+  }
+
+  if (activeOnly === 'true') {
+    conditions.push(`status = 'ATIVO'`);
+  } else if (status === 'ATIVO_NAO_RECONHECIDO') {
+    conditions.push(`status = 'ATIVO' AND acknowledged = FALSE`);
+  } else if (status === 'ATIVO_RECONHECIDO') {
+    conditions.push(`status = 'ATIVO' AND acknowledged = TRUE`);
+  } else if (status === 'NORMALIZADO') {
+    conditions.push(`status = 'NORMALIZADO'`);
+  }
+
+  if (startDate) {
+    const startDateObj = new Date(startDate);
+    if (Number.isNaN(startDateObj.getTime())) {
+      return res.status(400).json({ error: 'Data inicial inválida.' });
+    }
+    conditions.push(`created_at >= $${idx++}`);
+    values.push(startDateObj.toISOString());
+  }
+
+  if (endDate) {
+    const endDateObj = new Date(endDate);
+    if (Number.isNaN(endDateObj.getTime())) {
+      return res.status(400).json({ error: 'Data final inválida.' });
+    }
+    conditions.push(`created_at <= $${idx++}`);
+    values.push(endDateObj.toISOString());
+  }
+
+  if (search) {
+    conditions.push(`(field_name ILIKE $${idx} OR limit_type ILIKE $${idx})`);
+    values.push(`%${search}%`);
+    idx++;
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const rowLimit = Math.min(Math.max(Number(limit) || 200, 1), 500);
+
+  try {
+    const result = await db.query(
+      `SELECT id, field_name, value_read, limit_type, limit_value, status,
+              acknowledged, acknowledged_by, cleared_by,
+              TO_CHAR(acknowledged_at, 'DD/MM/YYYY HH24:MI:SS') as acknowledged_at_formatted,
+              TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI:SS') as formatted_date,
+              TO_CHAR(cleared_at, 'DD/MM/YYYY HH24:MI:SS') as cleared_at_formatted
+       FROM alarm_history
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT ${rowLimit}`,
+      values
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Erro ao buscar histórico de alarmes:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar histórico de alarmes.' });
+  }
+});
+
+// --- ROTA DE AUDITORIA ---
+// Consulta o histórico de alterações do sistema — apenas administradores.
+// Suporta filtro por usuário (busca parcial), por período (data/hora inicial
+// e final) e por texto livre (procura na ação e nos detalhes). Sempre usa
+// consultas parametrizadas ($1, $2...) para os valores vindos do usuário —
+// nunca concatenados direto na string SQL.
+app.get('/api/audit-log', requireRole(['administrador']), async (req, res) => {
+  const { username, startDate, endDate, search, limit } = req.query;
+  const conditions = [];
+  const values = [];
+  let idx = 1;
+
+  if (username) {
+    conditions.push(`username ILIKE $${idx++}`);
+    values.push(`%${username}%`);
+  }
+
+  if (startDate) {
+    const startDateObj = new Date(startDate);
+    if (Number.isNaN(startDateObj.getTime())) {
+      return res.status(400).json({ error: 'Data inicial inválida.' });
+    }
+    conditions.push(`created_at >= $${idx++}`);
+    values.push(startDateObj.toISOString());
+  }
+
+  if (endDate) {
+    const endDateObj = new Date(endDate);
+    if (Number.isNaN(endDateObj.getTime())) {
+      return res.status(400).json({ error: 'Data final inválida.' });
+    }
+    conditions.push(`created_at <= $${idx++}`);
+    values.push(endDateObj.toISOString());
+  }
+
+  if (search) {
+    conditions.push(`(action ILIKE $${idx} OR details::text ILIKE $${idx})`);
+    values.push(`%${search}%`);
+    idx++;
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  // Limite sempre um número seguro entre 1 e 500 (Math.min/Math.max garantem
+  // isso mesmo com entrada inválida), então é seguro interpolar direto na
+  // query — não vem de string livre do usuário.
+  const rowLimit = Math.min(Math.max(Number(limit) || 200, 1), 500);
+
+  try {
+    const result = await db.query(
+      `SELECT id, user_id, username, role, action, details,
+              TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI:SS') as formatted_date
+       FROM audit_log
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT ${rowLimit}`,
+      values
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao consultar auditoria:', err.message);
+    res.status(500).json({ error: 'Erro ao consultar histórico de auditoria.' });
   }
 });
 

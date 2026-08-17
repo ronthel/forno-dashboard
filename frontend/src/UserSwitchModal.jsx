@@ -34,7 +34,7 @@ export default function UserSwitchModal({ isOpen, onClose, onSwitchUser, onLogou
         setError(data.error || 'Não foi possível entrar com esse usuário.');
         return;
       }
-      onSwitchUser(data.user.username, data.token, data.user.role);
+      onSwitchUser(data.user.username, data.token, data.user.role, data.user.mustChangePassword);
       resetAndClose();
     } catch (err) {
       setError('Erro de conexão com o servidor.');

@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown } from 'lucide-react';
+import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown, Users, ScrollText, ShieldCheck, Loader2 } from 'lucide-react';
 import api, { isOk } from './api';
 import ChartCard from './ChartCard';
 import Login from './Login';
 import UserSwitchModal from './UserSwitchModal';
-import AlarmModal from './AlarmModal';
+import AlarmsView from './AlarmsView';
 import OeeView from './OeeView';
 import ConfigView from './ConfigView';
 import SensorConfigView from './SensorConfigView';
+import UserManagementView from './UserManagementView';
+import ForceChangePasswordView from './ForceChangePasswordView';
+import AuditLogView from './AuditLogView';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -20,6 +23,13 @@ export default function App() {
 
   const [currentUserRole, setCurrentUserRole] = useState(() => {
     return localStorage.getItem('currentUserRole') || '';
+  });
+
+  // Quando true, bloqueia o acesso ao resto do sistema até o usuário definir
+  // uma senha nova (contas criadas por um administrador exigem isso no
+  // primeiro login).
+  const [mustChangePassword, setMustChangePassword] = useState(() => {
+    return localStorage.getItem('mustChangePassword') === 'true';
   });
 
   const [isServerDown, setIsServerDown] = useState(false);
@@ -37,7 +47,6 @@ export default function App() {
   const [customDates, setCustomDates] = useState(null);
 
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [isAlarmModalOpen, setIsAlarmModalOpen] = useState(false);
   const [isKioskMode, setIsKioskMode] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -51,16 +60,48 @@ export default function App() {
     goodCount: 0
   });
 
-  const [activeAlertsMap, setActiveAlertsMap] = useState({});
+  // Alarmes ativos (status = ATIVO no banco), consultados periodicamente —
+  // alimenta o badge do sininho e a barra de alarmes recentes no rodapé do
+  // dashboard. Vem do backend (não de quais gráficos estão na tela no
+  // momento), então continua confiável mesmo se o gráfico da variável em
+  // alarme for removido do layout.
+  const [activeAlarms, setActiveAlarms] = useState([]);
+  const [acknowledgingAlarmId, setAcknowledgingAlarmId] = useState(null);
 
-  const handleAlertStatusChange = useCallback((chartId, isAlert) => {
-    setActiveAlertsMap((prev) => {
-      if (prev[chartId] === isAlert) return prev;
-      return { ...prev, [chartId]: isAlert };
-    });
+  const fetchActiveAlarms = useCallback(async () => {
+    try {
+      const res = await api.get('/api/alarms', { params: { activeOnly: 'true', limit: 50 } });
+      if (isOk(res) && Array.isArray(res.data)) {
+        setActiveAlarms(res.data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar alarmes ativos:', err);
+    }
   }, []);
 
-  const activeAlertsCount = Object.values(activeAlertsMap).filter(Boolean).length;
+  useEffect(() => {
+    fetchActiveAlarms();
+    const interval = setInterval(fetchActiveAlarms, 10000);
+    return () => clearInterval(interval);
+  }, [fetchActiveAlarms]);
+
+  const handleAcknowledgeAlarm = async (id) => {
+    setAcknowledgingAlarmId(id);
+    try {
+      const res = await api.put(`/api/alarms/${id}/acknowledge`);
+      if (isOk(res)) {
+        fetchActiveAlarms();
+      }
+    } catch (err) {
+      console.error('Erro ao reconhecer alarme:', err);
+    } finally {
+      setAcknowledgingAlarmId(null);
+    }
+  };
+
+  const unacknowledgedAlarmsCount = activeAlarms.filter((a) => !a.acknowledged).length;
+  const recentActiveAlarms = activeAlarms.slice(0, 3);
+  const extraActiveAlarmsCount = Math.max(0, activeAlarms.length - recentActiveAlarms.length);
 
   const fetchOeeMetricsFromDb = async () => {
     try {
@@ -159,30 +200,40 @@ export default function App() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const handleLoginSuccess = (username, token, role) => {
+  const handleLoginSuccess = (username, token, role, mustChangePasswordFlag) => {
     const userToSave = username || 'Operador';
     const roleToSave = role || '';
     setIsAuthenticated(true);
     setCurrentUser(userToSave);
     setCurrentUserRole(roleToSave);
+    setMustChangePassword(!!mustChangePasswordFlag);
     localStorage.setItem('isLoggedIn', 'true');
     localStorage.setItem('currentUser', userToSave);
     localStorage.setItem('currentUserRole', roleToSave);
+    localStorage.setItem('mustChangePassword', mustChangePasswordFlag ? 'true' : 'false');
     if (token) localStorage.setItem('authToken', token);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setCurrentUserRole('');
+    setMustChangePassword(false);
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('currentUserRole');
+    localStorage.removeItem('mustChangePassword');
     localStorage.removeItem('authToken');
   };
 
   // Troca de usuário: mesmo fluxo do login, só que sem sair da tela atual do dashboard.
-  const handleSwitchUser = (username, token, role) => {
-    handleLoginSuccess(username, token, role);
+  const handleSwitchUser = (username, token, role, mustChangePasswordFlag) => {
+    handleLoginSuccess(username, token, role, mustChangePasswordFlag);
+  };
+
+  // Chamado quando o usuário termina de definir a nova senha na tela obrigatória.
+  const handlePasswordChanged = () => {
+    setMustChangePassword(false);
+    localStorage.setItem('mustChangePassword', 'false');
   };
 
   const handleApplyCustomDates = (e) => {
@@ -213,6 +264,11 @@ export default function App() {
   // Telas de configuração (Turnos e Variáveis) são restritas a Supervisor e Administrador.
   const canConfig = currentUserRole === 'supervisor' || currentUserRole === 'administrador';
 
+  // Gerenciamento de usuários e auditoria (redefinir senha, alterar perfil,
+  // ver histórico de alterações) são restritos a Administrador.
+  const canManageUsers = currentUserRole === 'administrador';
+  const canViewAudit = currentUserRole === 'administrador';
+
   // Defesa extra: se por algum motivo o estado cair numa tela restrita sem
   // permissão (ex.: troca de usuário para um perfil sem acesso enquanto a
   // tela já estava aberta), volta para o dashboard automaticamente.
@@ -221,13 +277,31 @@ export default function App() {
     if (restrictedViews.includes(currentView) && !canConfig) {
       setCurrentView('dashboard');
     }
-  }, [currentView, canConfig]);
+    if (currentView === 'userManagement' && !canManageUsers) {
+      setCurrentView('dashboard');
+    }
+    if (currentView === 'auditLog' && !canViewAudit) {
+      setCurrentView('dashboard');
+    }
+  }, [currentView, canConfig, canManageUsers, canViewAudit]);
 
   if (!isAuthenticated || isServerDown) {
     return (
       <Login
         onLoginSuccess={handleLoginSuccess}
         isServerDown={isServerDown}
+      />
+    );
+  }
+
+  // Bloqueia o resto do sistema até o usuário definir uma senha nova —
+  // acontece só para contas criadas por um administrador, no primeiro login.
+  if (mustChangePassword) {
+    return (
+      <ForceChangePasswordView
+        currentUser={currentUser}
+        onPasswordChanged={handlePasswordChanged}
+        onLogout={handleLogout}
       />
     );
   }
@@ -253,9 +327,21 @@ export default function App() {
         onBack={() => {
           setCurrentView('dashboard');
           loadInitialLayout();
-        }} 
+        }}
       />
     );
+  }
+
+  if (currentView === 'userManagement' && canManageUsers) {
+    return <UserManagementView onBack={() => setCurrentView('dashboard')} currentUser={currentUser} />;
+  }
+
+  if (currentView === 'auditLog' && canViewAudit) {
+    return <AuditLogView onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  if (currentView === 'alarms') {
+    return <AlarmsView onBack={() => setCurrentView('dashboard')} currentUserRole={currentUserRole} />;
   }
 
   const handleSaveLayout = async () => {
@@ -347,6 +433,24 @@ export default function App() {
               </button>
             )}
 
+            {canManageUsers && (
+              <button
+                onClick={() => setCurrentView('userManagement')}
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
+              >
+                <Users size={14} className="text-amber-400" /> Usuários
+              </button>
+            )}
+
+            {canViewAudit && (
+              <button
+                onClick={() => setCurrentView('auditLog')}
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
+              >
+                <ScrollText size={14} className="text-amber-400" /> Auditoria
+              </button>
+            )}
+
             <button
               onClick={() => setIsMuted(!isMuted)}
               className={`flex items-center gap-1.5 border px-2.5 py-1.5 rounded text-xs font-semibold transition ${
@@ -372,14 +476,14 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setIsAlarmModalOpen(true)}
+              onClick={() => setCurrentView('alarms')}
               className={`flex items-center gap-1.5 border px-2.5 py-1.5 rounded text-xs font-semibold transition ${
-                activeAlertsCount > 0
+                unacknowledgedAlarmsCount > 0
                   ? 'bg-red-600 text-white border-red-500 animate-pulse'
                   : 'bg-slate-800 hover:bg-slate-700 text-red-400 border-slate-700'
               }`}
             >
-              <Bell size={14} /> Alarmes {activeAlertsCount > 0 && `(${activeAlertsCount})`}
+              <Bell size={14} /> Alarmes {unacknowledgedAlarmsCount > 0 && `(${unacknowledgedAlarmsCount})`}
             </button>
 
             <button
@@ -572,17 +676,50 @@ export default function App() {
               refreshInterval={refreshInterval}
               onRemove={handleRemoveChart}
               onUpdateLimits={handleUpdateChartLimits}
-              onAlertStatusChange={handleAlertStatusChange}
               isMuted={isMuted}
             />
           </div>
         ))}
       </div>
 
-      <AlarmModal
-        isOpen={isAlarmModalOpen}
-        onClose={() => setIsAlarmModalOpen(false)}
-      />
+      {recentActiveAlarms.length > 0 && (
+        <div className="shrink-0 flex flex-wrap items-center gap-2 bg-red-950/30 border border-red-500/30 rounded-lg px-3 py-2 mt-3">
+          <span className="flex items-center gap-1.5 text-red-400 text-xs font-bold uppercase shrink-0">
+            <Bell size={13} className="animate-pulse" /> Alarmes ativos:
+          </span>
+          {recentActiveAlarms.map((alarm) => (
+            <div
+              key={alarm.id}
+              className="flex items-center gap-2 bg-slate-900/70 border border-red-500/30 rounded px-2.5 py-1 text-xs"
+            >
+              <span className="font-bold text-amber-400">{alarm.field_name}</span>
+              <span className="font-mono text-red-400">{alarm.value_read}</span>
+              <span className="text-slate-500">desde {alarm.formatted_date}</span>
+              {alarm.acknowledged ? (
+                <span className="flex items-center gap-1 text-emerald-400 text-[10px]">
+                  <ShieldCheck size={11} /> Reconhecido
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleAcknowledgeAlarm(alarm.id)}
+                  disabled={acknowledgingAlarmId === alarm.id}
+                  className="flex items-center gap-1 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white px-2 py-0.5 rounded text-[10px] font-semibold transition"
+                >
+                  {acknowledgingAlarmId === alarm.id ? <Loader2 size={10} className="animate-spin" /> : <ShieldCheck size={10} />} Reconhecer
+                </button>
+              )}
+            </div>
+          ))}
+          {extraActiveAlarmsCount > 0 && (
+            <button
+              onClick={() => setCurrentView('alarms')}
+              className="text-[11px] text-slate-400 hover:text-amber-400 underline shrink-0"
+            >
+              +{extraActiveAlarmsCount} outro(s) ativo(s)
+            </button>
+          )}
+        </div>
+      )}
 
       <UserSwitchModal
         isOpen={isUserModalOpen}

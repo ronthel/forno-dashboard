@@ -160,7 +160,7 @@ const playAlarmSound = (isMuted) => {
   } catch (err) { console.warn('Audio não permitido:', err); }
 };
 
-function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, onAlertStatusChange, isMuted }) {
+function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, isMuted }) {
   const fields = useMemo(
     () => (Array.isArray(chart.fields) ? chart.fields : (chart.field ? [chart.field] : [])),
     [chart.fields, chart.field]
@@ -170,6 +170,11 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sensorConfigsMap, setSensorConfigsMap] = useState({});
+  // Só fica true depois que a configuração real de limites chegou do
+  // servidor — evita avaliar alarme com os limites 0/0 (fallback) que
+  // existem por uma fração de segundo antes disso, o que faria qualquer
+  // valor positivo parecer "acima do máximo".
+  const [sensorConfigLoaded, setSensorConfigLoaded] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const chartContainerRef = useRef(null);
 
@@ -183,7 +188,10 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
 
   useEffect(() => {
     api.get('/api/config/sensores')
-      .then((res) => setSensorConfigsMap(res.data || {}))
+      .then((res) => {
+        setSensorConfigsMap(res.data || {});
+        setSensorConfigLoaded(true);
+      })
       .catch((err) => console.error('Erro ao buscar config:', err));
   }, [chart.id]);
 
@@ -254,27 +262,48 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
 
       setData(processed);
 
-      if (processed.length > 0) {
+      // Só avalia alarme depois que os limites reais do sensor chegaram do
+      // servidor — antes disso, seriesMeta ainda está com o fallback 0/0 e
+      // qualquer leitura pareceria "fora da faixa".
+      if (processed.length > 0 && sensorConfigLoaded) {
         const lastPoint = processed[processed.length - 1];
-        let anyOutOfRange = false;
 
         seriesMeta.forEach((s) => {
           const val = lastPoint[s.field];
           if (val === undefined) return;
-          const outOfRange = val > s.maxLimit || val < s.minLimit;
-          if (outOfRange) anyOutOfRange = true;
+          const breachedMax = val > s.maxLimit;
+          const breachedMin = val < s.minLimit;
+          const outOfRange = breachedMax || breachedMin;
 
           if (outOfRange) {
+            // Dispara só na borda de transição (quando o valor acabou de
+            // cruzar o limite) — não a cada leitura enquanto ele continua
+            // fora da faixa — para não encher o histórico de alarmes com
+            // centenas de registros repetidos do mesmo desvio.
             if (!alarmDispatchedRef.current[s.field]) {
               playAlarmSound(isMuted);
               alarmDispatchedRef.current[s.field] = true;
+              const limitType = breachedMax ? 'MAX' : 'MIN';
+              const limitValue = breachedMax ? s.maxLimit : s.minLimit;
+              api.post('/api/alarms/trigger', { fieldName: s.field, valueRead: val, limitType, limitValue })
+                .catch((err) => console.error('Erro ao registrar disparo de alarme:', err));
             }
           } else {
+            // Reconcilia com o servidor na primeira leitura normal desta
+            // instância do gráfico (a ref ainda não é "false", ou seja,
+            // nunca confirmamos que está tudo ok por aqui) — cobre o caso
+            // de um alarme ter ficado ATIVO de uma sessão anterior (página
+            // recarregada, gráfico removido e recolocado, etc.) enquanto
+            // este componente específico nunca viu a transição de saída.
+            // Depois da primeira reconciliação, só chama de novo numa
+            // borda de transição real — não a cada leitura.
+            if (alarmDispatchedRef.current[s.field] !== false) {
+              api.post('/api/alarms/resolve', { fieldName: s.field })
+                .catch((err) => console.error('Erro ao normalizar alarme:', err));
+            }
             alarmDispatchedRef.current[s.field] = false;
           }
         });
-
-        if (onAlertStatusChange) onAlertStatusChange(chart.id, anyOutOfRange);
       }
     } catch (err) { console.error('Erro:', err); } finally { setLoading(false); }
   };
@@ -286,7 +315,7 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, o
     const interval = setInterval(fetchData, refreshInterval);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart.id, seriesMeta, timeRange, customDates, refreshInterval, isMuted]);
+  }, [chart.id, seriesMeta, timeRange, customDates, refreshInterval, isMuted, sensorConfigLoaded]);
 
   const lastRow = data.length > 0 ? data[data.length - 1] : null;
   const isOutOfRange = lastRow

@@ -36,7 +36,7 @@ export default function Login({ onLoginSuccess, isServerDown }) {
         setError(data.error || 'Não foi possível entrar.');
         return;
       }
-      onLoginSuccess(data.user.username, data.token, data.user.role);
+      onLoginSuccess(data.user.username, data.token, data.user.role, data.user.mustChangePassword);
     } catch (err) {
       setError('Erro de conexão com o servidor.');
     } finally {
