@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  influxdb:
+    image: influxdb:3-core
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    command:
+      - influxdb3
+      - serve
+      - --node-id=forno-node0
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3/data
+    volumes:
+      - influxdb_data:/var/lib/influxdb3/data
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_HOST: postgres
+      INFLUX_URL: http://influxdb:8181
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env
+    environment:
+      VITE_API_URL: http://192.168.15.103:5000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  plc-service:
+    build:
+      context: ./plc-service
+    restart: unless-stopped
+    env_file:
+      - ./plc-service/.env
+    environment:
+      INFLUX_URL: http://influxdb:8181
+    depends_on:
+      - influxdb
+
+volumes:
+  postgres_data:
+  influxdb_data:
