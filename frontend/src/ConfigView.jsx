@@ -48,7 +48,7 @@ export default function ConfigView({ onBack }) {
   };
 
   return (
-    <div className="h-screen w-screen bg-slate-900 text-slate-100 p-6 flex flex-col justify-between overflow-hidden">
+    <div className="h-full w-full bg-slate-900 text-slate-100 p-6 flex flex-col justify-between overflow-hidden">
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
         <div className="flex items-center gap-4">
           <button

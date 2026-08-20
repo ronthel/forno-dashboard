@@ -11,6 +11,7 @@ import SensorConfigView from './SensorConfigView';
 import UserManagementView from './UserManagementView';
 import ForceChangePasswordView from './ForceChangePasswordView';
 import AuditLogView from './AuditLogView';
+import Sidebar from './Sidebar';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -395,42 +396,143 @@ export default function App() {
     );
   }
 
+  // Barra lateral igual em todas as telas (menos login/troca de senha, que
+  // vêm antes disso) — cada tela abaixo só troca o que aparece à direita
+  // dela. O botão da tela atual não aparece sozinho (ver Sidebar.jsx).
+  const sidebarProps = {
+    currentView,
+    onNavigate: setCurrentView,
+    canConfig,
+    canManageUsers,
+    canViewAudit,
+    unacknowledgedAlarmsCount,
+    currentUser,
+    onOpenUserModal: () => setIsUserModalOpen(true),
+    onLogout: handleLogout,
+  };
+
   if (currentView === 'oee') {
     return (
-      <OeeView
-        onBack={() => setCurrentView('dashboard')}
-        onOpenConfig={() => setCurrentView('configTurnos')}
-        oeeData={oeeMetricsData}
-        canConfig={canConfig}
-      />
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <OeeView
+            onBack={() => setCurrentView('dashboard')}
+            onOpenConfig={() => setCurrentView('configTurnos')}
+            oeeData={oeeMetricsData}
+            canConfig={canConfig}
+          />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
     );
   }
 
   if (currentView === 'configTurnos' && canConfig) {
-    return <ConfigView onBack={() => setCurrentView('dashboard')} />;
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <ConfigView onBack={() => setCurrentView('dashboard')} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
   }
 
   if (currentView === 'configSensores' && canConfig) {
     return (
-      <SensorConfigView
-        onBack={() => {
-          setCurrentView('dashboard');
-          loadInitialLayout();
-        }}
-      />
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <SensorConfigView
+            onBack={() => {
+              setCurrentView('dashboard');
+              loadInitialLayout();
+            }}
+          />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
     );
   }
 
   if (currentView === 'userManagement' && canManageUsers) {
-    return <UserManagementView onBack={() => setCurrentView('dashboard')} currentUser={currentUser} />;
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <UserManagementView onBack={() => setCurrentView('dashboard')} currentUser={currentUser} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
   }
 
   if (currentView === 'auditLog' && canViewAudit) {
-    return <AuditLogView onBack={() => setCurrentView('dashboard')} />;
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <AuditLogView onBack={() => setCurrentView('dashboard')} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
   }
 
   if (currentView === 'alarms') {
-    return <AlarmsView onBack={() => setCurrentView('dashboard')} currentUserRole={currentUserRole} />;
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <AlarmsView onBack={() => setCurrentView('dashboard')} currentUserRole={currentUserRole} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
   }
 
   const handleSaveLayout = async () => {
@@ -487,7 +589,11 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen bg-slate-900 text-slate-100 p-4 flex flex-col justify-between overflow-hidden">
+    <div className="h-screen w-screen bg-slate-900 text-slate-100 flex overflow-hidden">
+      <Sidebar {...sidebarProps} />
+
+      {/* Conteúdo principal */}
+      <div className="flex-1 flex flex-col p-4 overflow-hidden">
       <header className="flex flex-col gap-3 border-b border-slate-800 pb-3">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
           <div>
@@ -500,49 +606,6 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
-            <button
-              onClick={() => setCurrentView('oee')}
-              className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
-            >
-              <Gauge size={14} /> Relatório OEE
-            </button>
-
-            {canConfig && (
-              <button
-                onClick={() => setCurrentView('configTurnos')}
-                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
-              >
-                <Settings size={14} className="text-amber-400" /> Turnos
-              </button>
-            )}
-
-            {canConfig && (
-              <button
-                onClick={() => setCurrentView('configSensores')}
-                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
-              >
-                <Sliders size={14} className="text-amber-400" /> Variáveis
-              </button>
-            )}
-
-            {canManageUsers && (
-              <button
-                onClick={() => setCurrentView('userManagement')}
-                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
-              >
-                <Users size={14} className="text-amber-400" /> Usuários
-              </button>
-            )}
-
-            {canViewAudit && (
-              <button
-                onClick={() => setCurrentView('auditLog')}
-                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1.5 rounded text-xs font-semibold transition shadow-md"
-              >
-                <ScrollText size={14} className="text-amber-400" /> Auditoria
-              </button>
-            )}
-
             <button
               onClick={() => setIsMuted(!isMuted)}
               className={`flex items-center gap-1.5 border px-2.5 py-1.5 rounded text-xs font-semibold transition ${
@@ -565,17 +628,6 @@ export default function App() {
             >
               {isKioskMode ? <Minimize size={14} /> : <Maximize size={14} />}
               {isKioskMode ? 'Sair TV' : 'Modo TV'}
-            </button>
-
-            <button
-              onClick={() => setCurrentView('alarms')}
-              className={`flex items-center gap-1.5 border px-2.5 py-1.5 rounded text-xs font-semibold transition ${
-                unacknowledgedAlarmsCount > 0
-                  ? 'bg-red-600 text-white border-red-500 animate-pulse'
-                  : 'bg-slate-800 hover:bg-slate-700 text-red-400 border-slate-700'
-              }`}
-            >
-              <Bell size={14} /> Alarmes {unacknowledgedAlarmsCount > 0 && `(${unacknowledgedAlarmsCount})`}
             </button>
 
             <button
@@ -696,26 +748,6 @@ export default function App() {
                 <Plus size={14} /> Adicionar
               </button>
             </form>
-
-            <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded pl-2 pr-1 py-1">
-              <button
-                onClick={() => setIsUserModalOpen(true)}
-                title="Trocar usuário, criar usuário ou sair"
-                className="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-400 transition"
-              >
-                <User size={13} className="text-amber-500" />
-                <span className="font-medium max-w-[80px] truncate" title={currentUser}>
-                  {currentUser}
-                </span>
-              </button>
-              <button
-                onClick={handleLogout}
-                title="Sair"
-                className="flex items-center gap-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-1.5 py-0.5 rounded text-xs font-medium transition border border-red-500/30"
-              >
-                <LogOut size={12} />
-              </button>
-            </div>
           </div>
         </div>
 
@@ -852,6 +884,8 @@ export default function App() {
           )}
         </div>
       )}
+
+      </div>
 
       <UserSwitchModal
         isOpen={isUserModalOpen}

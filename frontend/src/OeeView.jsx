@@ -65,7 +65,7 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
   const stroke3 = c3 - (currentMetrics.quality / 100) * c3;
 
   return (
-    <div className="h-screen w-screen bg-slate-900 text-slate-100 p-4 flex flex-col justify-between overflow-hidden">
+    <div className="h-full w-full bg-slate-900 text-slate-100 p-4 flex flex-col justify-between overflow-hidden">
       {/* Cabeçalho */}
       <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
         <div className="flex items-center gap-4">
