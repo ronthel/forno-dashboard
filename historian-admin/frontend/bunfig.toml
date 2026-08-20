@@ -1,0 +1,8 @@
+[install]
+saveTextLockfile = true
+# 24h supply-chain guard: skip package versions published less than a day ago.
+minimumReleaseAge = 86400
+# @lovable.dev/vite-tanstack-config is a real dependency (Vite/TanStack/Tailwind
+# preset) used regardless of the Lovable editor — kept exempt from the 24h guard.
+# Confirm with the user before adding further exclusions.
+minimumReleaseAgeExcludes = ["@lovable.dev/vite-tanstack-config"]

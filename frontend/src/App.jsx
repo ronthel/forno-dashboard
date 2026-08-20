@@ -50,7 +50,18 @@ export default function App() {
   const [isKioskMode, setIsKioskMode] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
-  const [currentView, setCurrentView] = useState('dashboard');
+  // Mantém a tela atual ao dar F5 — antes, qualquer atualização de página
+  // sempre voltava pro dashboard, mesmo se você estivesse no meio de uma
+  // configuração. sessionStorage (não localStorage) de propósito: sobrevive
+  // a um refresh, mas uma sessão nova (aba/janela fechada e reaberta) volta
+  // a começar no dashboard, como já era o padrão esperado.
+  const [currentView, setCurrentView] = useState(
+    () => sessionStorage.getItem('currentView') || 'dashboard'
+  );
+
+  useEffect(() => {
+    sessionStorage.setItem('currentView', currentView);
+  }, [currentView]);
   const [isFieldPickerOpen, setIsFieldPickerOpen] = useState(false);
   const [fieldSearchQuery, setFieldSearchQuery] = useState('');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -85,6 +96,50 @@ export default function App() {
     const interval = setInterval(fetchActiveAlarms, 10000);
     return () => clearInterval(interval);
   }, [fetchActiveAlarms]);
+
+  // Remove ao vivo, da aba já aberta, qualquer variável que tenha sido
+  // excluída na tela de Configuração de Variáveis enquanto o dashboard
+  // estava aberto (sem precisar recarregar a página ou navegar pra fora e
+  // voltar). O backend já corrige o layout SALVO no momento da exclusão
+  // (ver removeFieldFromSavedLayout em server.js) — isto aqui só mantém o
+  // estado em memória desta aba sincronizado com aquilo. Só ajusta
+  // `charts` quando algo realmente mudou, pra não interferir numa edição
+  // em andamento (arrastar/redimensionar, etc.).
+  useEffect(() => {
+    const pruneDeletedFields = async () => {
+      try {
+        const res = await api.get('/api/influx/fields');
+        if (!isOk(res) || !Array.isArray(res.data)) return;
+        const validFields = res.data;
+
+        setCharts((prevCharts) => {
+          let changed = false;
+          const updated = prevCharts
+            .map((c) => {
+              const fields = Array.isArray(c.fields) ? c.fields : [];
+              const filteredFields = fields.filter((f) => validFields.includes(f));
+              if (filteredFields.length === fields.length) return c;
+              changed = true;
+              return {
+                ...c,
+                fields: filteredFields,
+                hiddenFields: Array.isArray(c.hiddenFields)
+                  ? c.hiddenFields.filter((f) => validFields.includes(f))
+                  : c.hiddenFields,
+              };
+            })
+            .filter((c) => (Array.isArray(c.fields) ? c.fields.length > 0 : true));
+
+          return changed ? updated : prevCharts;
+        });
+      } catch (err) {
+        console.error('Erro ao verificar variáveis excluídas:', err);
+      }
+    };
+
+    const interval = setInterval(pruneDeletedFields, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAcknowledgeAlarm = async (id) => {
     setAcknowledgingAlarmId(id);
@@ -147,20 +202,29 @@ export default function App() {
         const layoutData = res.data;
         const savedCharts = Array.isArray(layoutData) ? layoutData : (layoutData?.charts || []);
 
-        if (Array.isArray(savedCharts) && savedCharts.length > 0) {
+        // "isNew" (ver GET /api/dashboard/layout) é a única forma confiável
+        // de saber se isto é de verdade a primeira vez (nunca foi salvo
+        // nada) — um array vazio sozinho não diferencia isso de "usuário
+        // apagou todos os gráficos e salvou de propósito". Sem essa
+        // distinção, um layout vazio salvo deliberadamente era substituído
+        // pelos gráficos padrão (CTP01/CTP02) toda vez que a página
+        // recarregava ou o usuário voltava de outra tela.
+        const isTrulyFirstRun = !Array.isArray(layoutData) && layoutData?.isNew === true;
+
+        if (isTrulyFirstRun) {
+          setCharts([
+            { id: '1', title: 'Sensor - CTP01', fields: ['CTP01'], minLimit: 100, maxLimit: 800, hiddenFields: [] },
+            { id: '2', title: 'Sensor - CTP02', fields: ['CTP02'], minLimit: 100, maxLimit: 800, hiddenFields: [] }
+          ]);
+        } else {
           // Compatibilidade com layouts antigos salvos com "field" (string única)
           // em vez de "fields" (array) — normaliza para o novo formato.
-          const normalizedCharts = savedCharts.map((c) => ({
+          const normalizedCharts = (Array.isArray(savedCharts) ? savedCharts : []).map((c) => ({
             ...c,
             fields: Array.isArray(c.fields) ? c.fields : (c.field ? [c.field] : []),
             hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields : [],
           }));
           setCharts(normalizedCharts);
-        } else {
-          setCharts([
-            { id: '1', title: 'Sensor - CTP01', fields: ['CTP01'], minLimit: 100, maxLimit: 800, hiddenFields: [] },
-            { id: '2', title: 'Sensor - CTP02', fields: ['CTP02'], minLimit: 100, maxLimit: 800, hiddenFields: [] }
-          ]);
         }
 
         if (!Array.isArray(layoutData)) {
@@ -235,6 +299,8 @@ export default function App() {
     localStorage.removeItem('currentUserRole');
     localStorage.removeItem('mustChangePassword');
     localStorage.removeItem('authToken');
+    sessionStorage.removeItem('currentView');
+    setCurrentView('dashboard');
   };
 
   // Troca de usuário: mesmo fluxo do login, só que sem sair da tela atual do dashboard.

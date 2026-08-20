@@ -335,10 +335,24 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
     [seriesMeta, hiddenFields]
   );
 
-  // Domínio do eixo Y memoizado — só recalcula quando os dados, as séries visíveis
-  // ou os limites configurados realmente mudam (não a cada re-render do componente).
+  // Domínio do eixo Y memoizado — usa os limites mínimo/máximo CONFIGURADOS
+  // na variável (tela de Configuração de Variáveis), não mais um ajuste
+  // automático pelo intervalo dos dados plotados. Com uma só variável, usa
+  // o min/max dela direto; com várias, usa a faixa que cobre todas (menor
+  // mínimo até maior máximo configurados), já que é um eixo só compartilhado.
+  // Só cai de volta pro ajuste automático por dados se os limites configurados
+  // não fizerem sentido como domínio (min == max, ou nenhuma variável visível).
   const domainY = useMemo(() => {
     const relevantSeries = visibleSeriesMeta.length > 0 ? visibleSeriesMeta : seriesMeta;
+
+    if (relevantSeries.length > 0) {
+      const lo = Math.min(...relevantSeries.map((s) => s.minLimit));
+      const hi = Math.max(...relevantSeries.map((s) => s.maxLimit));
+      if (hi > lo) return [lo, hi];
+    }
+
+    // Fallback (limites não configurados ou inválidos): ajuste automático,
+    // como era o comportamento antigo.
     const allValues = [];
     for (const row of data) {
       for (const s of relevantSeries) {
@@ -346,14 +360,11 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
         if (v !== undefined) allValues.push(v);
       }
     }
-    if (isSingleField) {
-      allValues.push(seriesMeta[0].minLimit, seriesMeta[0].maxLimit);
-    }
     if (allValues.length === 0) return ['auto', 'auto'];
     const [minVal, maxVal] = minMax(allValues);
     const padding = (maxVal - minVal) * 0.2 || 10;
     return [Math.floor(minVal - padding), Math.ceil(maxVal + padding)];
-  }, [data, visibleSeriesMeta, seriesMeta, isSingleField]);
+  }, [data, visibleSeriesMeta, seriesMeta]);
 
   const formatXTick = (tickItem) => {
     if (!tickItem) return '';

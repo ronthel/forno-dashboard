@@ -31,13 +31,14 @@ async function getValidFields() {
   try {
     const result = await db.query('SELECT field_name FROM sensores_config WHERE ativo = TRUE ORDER BY field_name');
     const fields = result.rows.map((r) => r.field_name);
-    if (fields.length > 0) {
-      validFieldsCache = { fields, fetchedAt: now };
-      return fields;
-    }
-    // Nenhuma variável ativa cadastrada ainda (ex.: banco recém-criado) —
-    // usa o fallback em vez de zerar todas as rotas de leitura.
-    return validFieldsCache.fields;
+    // A consulta funcionou — o resultado é a verdade atual, mesmo que vazio
+    // (usuário pode ter excluído todas as variáveis de propósito). O cache
+    // só existe pra evitar bater no Postgres a cada /metric, não pra
+    // "proteger" contra uma lista vazia legítima — isso escondia variáveis
+    // já excluídas atrás de uma lista antiga pra sempre, até reiniciar o
+    // backend. Só cai no fallback abaixo em erro DE VERDADE (catch).
+    validFieldsCache = { fields, fetchedAt: now };
+    return fields;
   } catch (err) {
     console.error('Erro ao buscar variáveis ativas no PostgreSQL, usando última lista conhecida:', err.message);
     return validFieldsCache.fields;
@@ -74,6 +75,27 @@ function buildWhereClause({ range, startDate, endDate }) {
   return `WHERE time >= NOW() - INTERVAL '${selectedInterval}'`;
 }
 
+// Extrai um número utilizável de uma linha de "tag_events": o valor pode vir
+// em value_num (a grande maioria das nossas tags, todas 'real') ou em
+// value_bool (tags booleanas, ex: TOP_STOP_BUTTON_INPUT) — nunca os dois.
+// Convertido pra 0/1 no caso bool pra manter o mesmo formato numérico que o
+// frontend (Recharts) já espera de quando líamos "Variaveis" direto.
+function extractNumericValue(row) {
+  if (row.value_num !== undefined && row.value_num !== null) return parseFloat(row.value_num);
+  if (row.value_bool !== undefined && row.value_bool !== null) return row.value_bool ? 1 : 0;
+  return null;
+}
+
+function formatBRDateTime(dateObj) {
+  return dateObj.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
 router.get('/fields', async (req, res) => {
   res.json(await getValidFields());
 });
@@ -94,10 +116,22 @@ router.get('/metric', async (req, res) => {
     return res.status(err.statusCode || 400).json({ error: err.message });
   }
 
+  // "tag_events" é o formato "longo" gravado pelo Wtecc Historian: uma linha
+  // por leitura de tag (tag_name como tag indexada, valor em value_num ou
+  // value_bool) — diferente do "Variaveis" antigo, que tinha uma coluna por
+  // sensor. Cada tag filtrada por tag_name aqui já dá diretamente a série
+  // temporal de UM campo, sem precisar de pivot.
+  // SELECT * (não lista value_bool/value_num explicitamente) de propósito:
+  // o InfluxDB 3 tem schema dinâmico por tabela — uma coluna só existe se já
+  // foi escrita alguma vez. Hoje só gravamos tags 'real' (sem nenhuma
+  // 'bool' ativa), então "value_bool" ainda nem existe no schema, e
+  // referenciar a coluna direto no SELECT quebraria a query com "No field
+  // named value_bool". extractNumericValue() já lida com a coluna ausente.
   const sqlQuery = `
-    SELECT time, "${targetField}"
-    FROM "Variaveis"
+    SELECT *
+    FROM "tag_events"
     ${whereClause}
+    AND tag_name = '${targetField}'
     ORDER BY time ASC
   `;
 
@@ -106,19 +140,13 @@ router.get('/metric', async (req, res) => {
     const data = [];
 
     for await (const row of reader) {
-      if (row[targetField] !== undefined && row[targetField] !== null) {
+      const value = extractNumericValue(row);
+      if (value !== null) {
         const dateObj = new Date(row.time);
-
         data.push({
           timestamp: dateObj.getTime(), // Retorna o valor em milissegundos para escala do Recharts
-          time: dateObj.toLocaleString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-          }),
-          value: parseFloat(row[targetField])
+          time: formatBRDateTime(dateObj),
+          value
         });
       }
     }
@@ -135,6 +163,18 @@ router.get('/metric', async (req, res) => {
 
 // Consulta múltiplas variáveis de uma vez (usado pelos gráficos com mais de uma
 // "pena"), numa única query ao InfluxDB em vez de uma requisição por variável.
+//
+// Como "tag_events" é formato longo, cada (tag_name, time) vem numa linha
+// separada — leituras do MESMO ciclo de poll do CLP saem com timestamps a
+// poucos microssegundos de diferença entre si (cada tag é gravada num
+// `datetime.now()` próprio no coletor), não exatamente iguais. Por isso
+// agrupamos por "balde" de 1s (arredondando o timestamp) pra reconstruir um
+// único ponto por ciclo com todos os campos pedidos — do contrário, cada
+// campo viraria uma série de pontos isolados, quebrando o gráfico
+// multi-linha. 1s é seguro aqui porque o intervalo de poll real (5s) é bem
+// maior que essa janela, então nunca mistura ciclos diferentes no mesmo balde.
+const METRICS_BUCKET_MS = 1000;
+
 router.get('/metrics', async (req, res) => {
   const { fields, range, startDate, endDate } = req.query;
   const requestedFields = (fields || '').split(',').map((f) => f.trim()).filter(Boolean);
@@ -152,42 +192,39 @@ router.get('/metrics', async (req, res) => {
     return res.status(err.statusCode || 400).json({ error: err.message });
   }
 
-  const columns = validFields.map((f) => `"${f}"`).join(', ');
+  // SELECT * pelo mesmo motivo do /metric acima (schema dinâmico do InfluxDB 3).
+  const tagNamesList = validFields.map((f) => `'${f}'`).join(', ');
   const sqlQuery = `
-    SELECT time, ${columns}
-    FROM "Variaveis"
+    SELECT *
+    FROM "tag_events"
     ${whereClause}
+    AND tag_name IN (${tagNamesList})
     ORDER BY time ASC
   `;
 
   try {
     const reader = await influxDB.query(sqlQuery);
-    const data = [];
+
+    // Mapa ordenado por chave de balde (ms) -> ponto agregado
+    const pointsByBucket = new Map();
 
     for await (const row of reader) {
-      const dateObj = new Date(row.time);
-      const point = {
-        timestamp: dateObj.getTime(),
-        time: dateObj.toLocaleString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        })
-      };
+      const value = extractNumericValue(row);
+      if (value === null) continue;
 
-      let hasAnyValue = false;
-      validFields.forEach((f) => {
-        if (row[f] !== undefined && row[f] !== null) {
-          point[f] = parseFloat(row[f]);
-          hasAnyValue = true;
-        }
-      });
+      const rawMs = new Date(row.time).getTime();
+      const bucketKey = Math.round(rawMs / METRICS_BUCKET_MS) * METRICS_BUCKET_MS;
 
-      if (hasAnyValue) data.push(point);
+      let point = pointsByBucket.get(bucketKey);
+      if (!point) {
+        const dateObj = new Date(bucketKey);
+        point = { timestamp: bucketKey, time: formatBRDateTime(dateObj) };
+        pointsByBucket.set(bucketKey, point);
+      }
+      point[row.tag_name] = value;
     }
 
+    const data = Array.from(pointsByBucket.values()).sort((a, b) => a.timestamp - b.timestamp);
     res.json(data);
   } catch (err) {
     // Detalhe completo do erro só vai para o log do servidor — o cliente

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api, { isOk } from './api';
 import {
   Home, Save, Sliders, Database, Check, Layers, Palette,
-  Plus, Trash2, RotateCcw, Search, Loader2, X, AlertTriangle
+  Plus, Trash2, Search, Loader2, X, AlertTriangle
 } from 'lucide-react';
 
 const DEFAULT_CONFIG_FOR = (field) => ({
@@ -19,6 +19,11 @@ export default function SensorConfigView({ onBack }) {
   const [availableFields, setAvailableFields] = useState([]);
   const [selectedField, setSelectedField] = useState('');
   const [sensorConfigs, setSensorConfigs] = useState({});
+
+  // Filtro da lista de variáveis já cadastradas (ativas/desativadas) — busca
+  // por nome da tag OU pela descrição, pra achar tanto quem lembra "CTP03"
+  // quanto quem lembra "Temperatura Zona 3".
+  const [fieldFilter, setFieldFilter] = useState('');
 
   const [currentConfig, setCurrentConfig] = useState(DEFAULT_CONFIG_FOR(''));
 
@@ -54,11 +59,11 @@ export default function SensorConfigView({ onBack }) {
       // uma linha em sensores_config.
       const known = new Set(Object.keys(configs));
       (Array.isArray(fieldsData) ? fieldsData : []).forEach((f) => known.add(f));
-      let fields = Array.from(known);
-
-      if (fields.length === 0) {
-        fields = ['CTP01', 'CTC'];
-      }
+      // Lista vazia é um estado real e válido (usuário pode ter excluído
+      // todas as variáveis de propósito) — não inventa nomes fictícios aqui,
+      // isso só escondia o fato de estar tudo excluído atrás de opções que
+      // não existem mais no banco.
+      const fields = Array.from(known);
 
       setAvailableFields(fields);
       setSensorConfigs(configs);
@@ -81,9 +86,16 @@ export default function SensorConfigView({ onBack }) {
     }
   }, [selectedField, sensorConfigs]);
 
-  const isFieldActive = (field) => sensorConfigs[field]?.ativo !== false;
-  const activeFields = availableFields.filter(isFieldActive);
-  const inactiveFields = availableFields.filter((f) => !isFieldActive(f));
+  const matchesFieldFilter = (field) => {
+    const term = fieldFilter.trim().toLowerCase();
+    if (!term) return true;
+    const descricao = (sensorConfigs[field]?.descricao || '').toLowerCase();
+    return field.toLowerCase().includes(term) || descricao.includes(term);
+  };
+
+  // Exclusão agora é definitiva (ver handleDelete) — não existe mais estado
+  // "desativada" para separar numa segunda lista, é uma lista só.
+  const activeFields = availableFields.filter(matchesFieldFilter);
 
   const handleSelectField = (field) => {
     setSelectedField(field);
@@ -123,37 +135,20 @@ export default function SensorConfigView({ onBack }) {
     }
   };
 
-  // --- Desativar / Reativar ---
-  const handleDeactivate = async (field) => {
+  // --- Excluir definitivamente ---
+  const handleDelete = async (field) => {
     setBusyField(field);
     setActionError('');
     try {
-      const res = await api.put(`/api/config/sensores/${encodeURIComponent(field)}/desativar`);
+      const res = await api.delete(`/api/config/sensores/${encodeURIComponent(field)}`);
       if (isOk(res)) {
         setConfirmDeleteField(null);
         await fetchConfig();
       } else {
-        setActionError(res.data?.error || `Erro ao desativar "${field}".`);
+        setActionError(res.data?.error || `Erro ao excluir "${field}".`);
       }
     } catch (err) {
-      setActionError(`Erro ao desativar "${field}".`);
-    } finally {
-      setBusyField(null);
-    }
-  };
-
-  const handleReactivate = async (field) => {
-    setBusyField(field);
-    setActionError('');
-    try {
-      const res = await api.put(`/api/config/sensores/${encodeURIComponent(field)}/reativar`);
-      if (isOk(res)) {
-        await fetchConfig();
-      } else {
-        setActionError(res.data?.error || `Erro ao reativar "${field}".`);
-      }
-    } catch (err) {
-      setActionError(`Erro ao reativar "${field}".`);
+      setActionError(`Erro ao excluir "${field}".`);
     } finally {
       setBusyField(null);
     }
@@ -273,9 +268,32 @@ export default function SensorConfigView({ onBack }) {
             </button>
           </div>
 
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={fieldFilter}
+              onChange={(e) => setFieldFilter(e.target.value)}
+              placeholder="Filtrar por nome ou descrição..."
+              className="w-full bg-slate-900/80 border border-slate-700 rounded-lg pl-8 pr-8 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+            />
+            {fieldFilter && (
+              <button
+                type="button"
+                onClick={() => setFieldFilter('')}
+                title="Limpar filtro"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
           <div className="flex flex-col gap-2 overflow-y-auto max-h-[350px] pr-1">
             {activeFields.length === 0 ? (
-              <span className="text-slate-500 text-xs text-center py-4">Nenhuma variável ativa</span>
+              <span className="text-slate-500 text-xs text-center py-4">
+                {fieldFilter ? 'Nenhuma variável ativa encontrada para esse filtro' : 'Nenhuma variável ativa'}
+              </span>
             ) : (
               activeFields.map((field) => (
                 <div
@@ -301,12 +319,12 @@ export default function SensorConfigView({ onBack }) {
                     <div className="flex items-center gap-1 pr-2">
                       <button
                         type="button"
-                        title="Confirmar desativação"
+                        title="Excluir definitivamente (não pode ser desfeito)"
                         disabled={busyField === field}
-                        onClick={() => handleDeactivate(field)}
+                        onClick={() => handleDelete(field)}
                         className="text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white px-2 py-1 rounded-lg disabled:opacity-50"
                       >
-                        {busyField === field ? <Loader2 size={12} className="animate-spin" /> : 'Confirmar'}
+                        {busyField === field ? <Loader2 size={12} className="animate-spin" /> : 'Excluir'}
                       </button>
                       <button
                         type="button"
@@ -320,7 +338,7 @@ export default function SensorConfigView({ onBack }) {
                   ) : (
                     <button
                       type="button"
-                      title="Desativar variável (para de monitorar, mantém o histórico)"
+                      title="Excluir variável definitivamente"
                       onClick={() => setConfirmDeleteField(field)}
                       className={`p-2 mr-1 rounded-lg transition ${
                         selectedField === field ? 'text-white/80 hover:bg-red-700/60' : 'text-slate-500 hover:text-red-400 hover:bg-slate-700'
@@ -334,30 +352,6 @@ export default function SensorConfigView({ onBack }) {
             )}
           </div>
 
-          {inactiveFields.length > 0 && (
-            <div className="border-t border-slate-700 pt-3 flex flex-col gap-2">
-              <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Desativadas</h3>
-              <div className="flex flex-col gap-2 overflow-y-auto max-h-[140px] pr-1">
-                {inactiveFields.map((field) => (
-                  <div
-                    key={field}
-                    className="flex items-center justify-between gap-2 bg-slate-900/50 border border-slate-800 rounded-xl p-2.5"
-                  >
-                    <span className="text-xs font-mono text-slate-500">{field}</span>
-                    <button
-                      type="button"
-                      disabled={busyField === field}
-                      onClick={() => handleReactivate(field)}
-                      className="flex items-center gap-1 text-[10px] font-bold bg-slate-700 hover:bg-emerald-700 text-slate-200 hover:text-white px-2 py-1 rounded-lg transition disabled:opacity-50"
-                    >
-                      {busyField === field ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
-                      Reativar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Coluna Direita: Formulário */}

@@ -127,6 +127,18 @@ async function initPostgres() {
       -- InfluxDB continua intacto — soft delete, nunca apagamos a linha.
       ALTER TABLE sensores_config ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE;
     `);
+
+    // Duas variáveis com a mesma descrição confundem o picker de seleção do
+    // dashboard (fica impossível saber qual é qual na hora de montar um
+    // gráfico) — trava no banco, não só no frontend, para valer mesmo se
+    // alguém gravar direto via API. Ignora maiúsc./minúsc. e espaços nas
+    // pontas (evita duplicata tipo "Zona 1" vs "zona 1 "), e permite várias
+    // linhas com descrição vazia/nula (índice parcial).
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS sensores_config_descricao_unique
+      ON sensores_config (lower(trim(descricao)))
+      WHERE descricao IS NOT NULL AND descricao <> '';
+    `);
     console.log('[PostgreSQL] Conectado e tabelas prontas.');
   } catch (err) {
     console.warn('[PostgreSQL Aviso] Não foi possível conectar:', err.message);
@@ -141,49 +153,52 @@ initPostgres();
 // backend avisar o pipeline de quais variáveis estão ativas, via um arquivo
 // combinado entre os dois (monitored_tags.json) em vez de uma segunda conexão
 // ao PLC ou de dar ao Python acesso direto ao PostgreSQL.
-const PLC_SERVICE_API_PORT = process.env.PLC_SERVICE_API_PORT || 8787;
-const MONITORED_TAGS_FILE = path.join(__dirname, '..', 'plc-service', 'monitored_tags.json');
+// Cliente do Wtecc Historian — ele é quem sabe de verdade quais tags
+// existem e estão sendo coletadas do CLP agora (o plc-service antigo, que
+// expunha uma API local de descoberta, está desativado). Autentica com o
+// papel "viewer" (só leitura, suficiente pra listar tags) e cacheia o token
+// até perto de expirar.
+const HISTORIAN_API_URL = process.env.HISTORIAN_API_URL || 'http://historian-api:8000';
+const HISTORIAN_VIEWER_PASSWORD = process.env.HISTORIAN_VIEWER_PASSWORD;
 
-function fetchPlcServiceJson(reqPath) {
-  return new Promise((resolve, reject) => {
-    const req = http.get(
-      { host: '127.0.0.1', port: PLC_SERVICE_API_PORT, path: reqPath, timeout: 4000 },
-      (res) => {
-        let data = '';
-        res.on('data', (chunk) => { data += chunk; });
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (err) {
-            reject(err);
-          }
-        });
-      }
-    );
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-    req.on('error', reject);
+let historianTokenCache = { token: null, expiresAt: 0 };
+
+async function getHistorianToken() {
+  if (historianTokenCache.token && Date.now() < historianTokenCache.expiresAt - 30000) {
+    return historianTokenCache.token;
+  }
+  if (!HISTORIAN_VIEWER_PASSWORD) {
+    throw new Error('HISTORIAN_VIEWER_PASSWORD não configurado no .env do backend');
+  }
+  const loginRes = await fetch(`${HISTORIAN_API_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'viewer', password: HISTORIAN_VIEWER_PASSWORD })
   });
+  if (!loginRes.ok) {
+    throw new Error(`login no Historian falhou: HTTP ${loginRes.status}`);
+  }
+  const loginData = await loginRes.json();
+  historianTokenCache = { token: loginData.token, expiresAt: new Date(loginData.expires_at).getTime() };
+  return loginData.token;
+}
+
+// Lista as tags REGISTRADAS no Historian (area=registered exclui as tags de
+// gatilho, que não fazem sentido aparecer nesse picker) — usada por
+// GET /api/plc/tags para alimentar o painel "Adicionar nova variável".
+async function fetchHistorianRegisteredTags() {
+  const token = await getHistorianToken();
+  const searchRes = await fetch(`${HISTORIAN_API_URL}/tags/search?area=registered&limit=500`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!searchRes.ok) {
+    throw new Error(`consulta de tags no Historian falhou: HTTP ${searchRes.status}`);
+  }
+  const searchData = await searchRes.json();
+  return (searchData.items || []).map((t) => ({ tag_name: t.name }));
 }
 
 // Reescreve plc-service/monitored_tags.json com as variáveis ATIVAS no
-// PostgreSQL — chamado depois de qualquer alteração em sensores_config.
-// Se a consulta falhar, ou não houver nenhuma variável ativa, deixamos o
-// arquivo como está (nunca escrevemos uma lista vazia) para não parar a
-// coleta de dados por causa de um erro passageiro no backend.
-async function regenerateMonitoredTagsFile() {
-  try {
-    const result = await db.query('SELECT field_name FROM sensores_config WHERE ativo = TRUE ORDER BY field_name');
-    const fields = result.rows.map((r) => r.field_name);
-    if (fields.length === 0) {
-      console.warn('[plc-service] Nenhuma variável ativa encontrada — não sobrescrevendo monitored_tags.json para não parar a coleta.');
-      return;
-    }
-    fs.writeFileSync(MONITORED_TAGS_FILE, JSON.stringify(fields, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Erro ao atualizar monitored_tags.json:', err.message);
-  }
-}
-
 // Remove uma variável desativada de qualquer gráfico onde ela apareça no
 // layout salvo do dashboard — chamado só ao DESATIVAR (reativar não devolve
 // a variável aos gráficos automaticamente, o usuário adiciona de novo se
@@ -251,7 +266,12 @@ app.get('/api/dashboard/layout', async (req, res) => {
       "SELECT charts_config FROM dashboard_layouts WHERE user_id = 'default_user' ORDER BY id DESC LIMIT 1"
     );
     if (result.rows.length === 0) {
-      return res.json({ charts: [] });
+      // "isNew" distingue "nunca foi salvo nada ainda" de "foi salvo um
+      // layout vazio de propósito" — os dois casos pareciam idênticos pro
+      // frontend antes (ambos {charts: []}), e ele tratava um layout vazio
+      // salvo deliberadamente como se fosse "primeira vez", repopulando com
+      // os gráficos padrão sempre que a página recarregava.
+      return res.json({ charts: [], isNew: true });
     }
     const stored = result.rows[0].charts_config;
     // Compatibilidade com layouts salvos antes desta mudança, que guardavam
@@ -404,6 +424,23 @@ app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), a
   try {
     const sensores = req.body;
 
+    // Duas variáveis com a mesma descrição confundem o picker de seleção do
+    // dashboard — barra ANTES de gravar qualquer coisa (o índice único no
+    // banco é a garantia definitiva, isso aqui só dá uma mensagem legível em
+    // vez do erro cru do Postgres estourando pro cliente).
+    const descricaoToFields = new Map();
+    for (const [fieldName, val] of Object.entries(sensores)) {
+      const normalizado = (val.descricao || '').trim().toLowerCase();
+      if (!normalizado) continue;
+      if (descricaoToFields.has(normalizado)) {
+        const outroCampo = descricaoToFields.get(normalizado);
+        return res.status(400).json({
+          error: `A descrição "${val.descricao}" já está sendo usada por "${outroCampo}". Cada variável precisa de uma descrição única.`
+        });
+      }
+      descricaoToFields.set(normalizado, fieldName);
+    }
+
     // Busca os valores atuais ANTES de sobrescrever, para poder registrar na
     // auditoria exatamente o que mudou (de → para) em cada campo do sensor.
     const previousRes = await db.query('SELECT * FROM sensores_config');
@@ -451,8 +488,6 @@ app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), a
       details: { alteracoes: alteracoes.length > 0 ? alteracoes : ['nenhum valor alterado'] }
     });
 
-    await regenerateMonitoredTagsFile();
-
     res.json({ success: true, message: 'Sensores salvos com sucesso no PostgreSQL!' });
   } catch (err) {
     console.error('Erro ao salvar sensores:', err);
@@ -460,65 +495,35 @@ app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), a
   }
 });
 
-// Desativa uma variável: pára de ser monitorada (some do monitored_tags.json
-// que o plc-service usa) mas o histórico já gravado no InfluxDB e a própria
-// linha em sensores_config continuam intactos — pode ser reativada depois.
-app.put('/api/config/sensores/:fieldName/desativar', requireRole(['supervisor', 'administrador']), async (req, res) => {
+// Exclui uma variável DEFINITIVAMENTE: remove a linha de sensores_config
+// (não é mais soft-delete) e tira a variável de qualquer gráfico salvo no
+// layout do dashboard. O histórico de leituras já gravado no InfluxDB
+// (tag_events/Variaveis) NÃO é apagado — só a configuração de exibição
+// daqui é removida. Ação irreversível: não existe mais "reativar".
+app.delete('/api/config/sensores/:fieldName', requireRole(['supervisor', 'administrador']), async (req, res) => {
   const { fieldName } = req.params;
   try {
     const result = await db.query(
-      'UPDATE sensores_config SET ativo = FALSE WHERE field_name = $1 RETURNING field_name',
+      'DELETE FROM sensores_config WHERE field_name = $1 RETURNING field_name',
       [fieldName]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Variável não encontrada.' });
     }
 
-    await regenerateMonitoredTagsFile();
     const removidoDosGraficos = await removeFieldFromSavedLayout(fieldName);
 
     logAudit({
       userId: req.user.id,
       username: req.user.username,
       role: req.user.role,
-      action: 'desativou variável de monitoramento',
+      action: 'excluiu variável de monitoramento definitivamente',
       details: { fieldName, removidoDosGraficosSalvos: removidoDosGraficos }
     });
 
-    res.json({ success: true, message: `Variável "${fieldName}" desativada.` });
+    res.json({ success: true, message: `Variável "${fieldName}" excluída definitivamente.` });
   } catch (err) {
-    console.error('Erro ao desativar sensor:', err);
-    res.status(500).json({ error: 'Erro interno' });
-  }
-});
-
-// Reativa uma variável desativada — volta a ser monitorada e escrita no
-// monitored_tags.json (a configuração antiga, descrição/limites/cor, etc.,
-// continua a mesma de antes da desativação).
-app.put('/api/config/sensores/:fieldName/reativar', requireRole(['supervisor', 'administrador']), async (req, res) => {
-  const { fieldName } = req.params;
-  try {
-    const result = await db.query(
-      'UPDATE sensores_config SET ativo = TRUE WHERE field_name = $1 RETURNING field_name',
-      [fieldName]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Variável não encontrada.' });
-    }
-
-    await regenerateMonitoredTagsFile();
-
-    logAudit({
-      userId: req.user.id,
-      username: req.user.username,
-      role: req.user.role,
-      action: 'reativou variável de monitoramento',
-      details: { fieldName }
-    });
-
-    res.json({ success: true, message: `Variável "${fieldName}" reativada.` });
-  } catch (err) {
-    console.error('Erro ao reativar sensor:', err);
+    console.error('Erro ao excluir sensor:', err);
     res.status(500).json({ error: 'Erro interno' });
   }
 });
@@ -528,10 +533,11 @@ app.put('/api/config/sensores/:fieldName/reativar', requireRole(['supervisor', '
 // configuração, já que expõe os nomes internos das tags do controlador.
 app.get('/api/plc/tags', requireRole(['supervisor', 'administrador']), async (req, res) => {
   try {
-    const data = await fetchPlcServiceJson('/tags');
-    res.json(data);
+    const atomic_scalar = await fetchHistorianRegisteredTags();
+    res.json({ atomic_scalar });
   } catch (err) {
-    res.status(502).json({ error: 'Não foi possível consultar as tags do PLC. Verifique se o pipeline (plc-service) está rodando.' });
+    console.error('Erro ao consultar tags do Historian:', err.message);
+    res.status(502).json({ error: 'Não foi possível consultar as tags cadastradas no Historian. Verifique se a API dele (historian-api) está rodando.' });
   }
 });
 
@@ -775,25 +781,31 @@ app.get('/api/audit-log', requireRole(['administrador']), async (req, res) => {
 // --- ROTA DE MÉTRICAS OEE ---
 app.get('/api/oee/metrics', async (req, res) => {
   try {
+    // tag_events e formato longo (uma linha por tag) - pega a leitura mais
+    // recente de CADA uma das 3 tags separadamente, em vez de uma linha so
+    // com as 3 colunas juntas (que so existia no formato antigo "Variaveis").
     const sqlQuery = `
-      SELECT "RUN_TIME_SEC", "TOTAL_COUNT", "GOOD_COUNT" 
-      FROM "Variaveis" 
-      ORDER BY time DESC 
-      LIMIT 1
+      SELECT tag_name, value_num, time
+      FROM "tag_events"
+      WHERE tag_name IN ('RUN_TIME_SEC', 'TOTAL_COUNT', 'GOOD_COUNT')
+      ORDER BY time DESC
+      LIMIT 30
     `;
 
     const reader = await influxDB.query(sqlQuery);
-    let latest = {};
+    const latestByTag = {};
 
     for await (const row of reader) {
-      latest = row;
-      break; 
+      // ja ordenado por tempo DESC - a primeira ocorrencia de cada tag_name e a mais recente
+      if (!(row.tag_name in latestByTag)) {
+        latestByTag[row.tag_name] = row.value_num;
+      }
     }
 
     res.json({
-      runTimeSec: Number(latest.RUN_TIME_SEC || 0),
-      totalCount: Number(latest.TOTAL_COUNT || 0),
-      goodCount: Number(latest.GOOD_COUNT || 0)
+      runTimeSec: Number(latestByTag.RUN_TIME_SEC || 0),
+      totalCount: Number(latestByTag.TOTAL_COUNT || 0),
+      goodCount: Number(latestByTag.GOOD_COUNT || 0)
     });
   } catch (err) {
     console.error('[Erro OEE Metrics]:', err.message);
