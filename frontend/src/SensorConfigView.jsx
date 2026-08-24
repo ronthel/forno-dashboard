@@ -5,12 +5,30 @@ import {
   Plus, Trash2, Search, Loader2, X, AlertTriangle
 } from 'lucide-react';
 
-const DEFAULT_CONFIG_FOR = (field) => ({
+// Mesma paleta usada nos gráficos (ChartCard.jsx) — mantém consistência visual
+// entre a cor escolhida aqui e a cor que a linha realmente usa no dashboard.
+const COLOR_PALETTE = ['#38bdf8', '#f59e0b', '#22c55e', '#ef4444', '#a855f7', '#eab308', '#f472b6', '#2dd4bf'];
+
+// Escolhe a primeira cor da paleta que nenhuma variável já cadastrada está
+// usando — evita que uma variável nova nasça com a mesma cor de outra já
+// existente. Se todas as cores já estiverem em uso (mais de 8 variáveis),
+// cicla pela paleta de novo em vez de travar.
+function pickUnusedColor(sensorConfigs) {
+  const usedColors = new Set(
+    Object.values(sensorConfigs || {}).map((cfg) => cfg?.cor).filter(Boolean)
+  );
+  const free = COLOR_PALETTE.find((c) => !usedColors.has(c));
+  if (free) return free;
+  const count = Object.keys(sensorConfigs || {}).length;
+  return COLOR_PALETTE[count % COLOR_PALETTE.length];
+}
+
+const DEFAULT_CONFIG_FOR = (field, sensorConfigs = {}) => ({
   descricao: `Sensor ${field}`,
   unidade: '°C',
   minLimit: 0,
   maxLimit: 100,
-  cor: '#38bdf8',
+  cor: pickUnusedColor(sensorConfigs),
   fatorCorrecao: 1.0,
   tipoAlarme: 'Aviso'
 });
@@ -82,7 +100,7 @@ export default function SensorConfigView({ onBack }) {
     if (selectedField && sensorConfigs[selectedField]) {
       setCurrentConfig(sensorConfigs[selectedField]);
     } else if (selectedField) {
-      setCurrentConfig(DEFAULT_CONFIG_FOR(selectedField));
+      setCurrentConfig(DEFAULT_CONFIG_FOR(selectedField, sensorConfigs));
     }
   }, [selectedField, sensorConfigs]);
 
@@ -103,7 +121,7 @@ export default function SensorConfigView({ onBack }) {
     if (sensorConfigs[field]) {
       setCurrentConfig(sensorConfigs[field]);
     } else {
-      setCurrentConfig(DEFAULT_CONFIG_FOR(field));
+      setCurrentConfig(DEFAULT_CONFIG_FOR(field, sensorConfigs));
     }
   };
 
@@ -196,7 +214,7 @@ export default function SensorConfigView({ onBack }) {
       setAvailableFields((prev) => [...prev, fieldName]);
     }
     setSelectedField(fieldName);
-    setCurrentConfig(DEFAULT_CONFIG_FOR(fieldName));
+    setCurrentConfig(DEFAULT_CONFIG_FOR(fieldName, sensorConfigs));
     setShowAddPanel(false);
     setPlcSearch('');
     setManualFieldName('');
@@ -227,12 +245,6 @@ export default function SensorConfigView({ onBack }) {
     <div className="h-full w-full bg-slate-900 text-slate-100 p-6 flex flex-col justify-between overflow-hidden">
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
         <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
-          >
-            <Home size={16} /> Início
-          </button>
           <div>
             <h1 className="text-xl font-bold text-amber-500 flex items-center gap-2">
               <Sliders size={22} /> Configuração Avançada de Variáveis (PostgreSQL)

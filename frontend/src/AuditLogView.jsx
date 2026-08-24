@@ -187,12 +187,6 @@ export default function AuditLogView({ onBack }) {
     <div className="h-full w-full bg-slate-900 text-slate-100 p-6 flex flex-col overflow-hidden">
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
         <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
-          >
-            <Home size={16} /> Início
-          </button>
           <div>
             <h1 className="text-xl font-bold text-amber-500 flex items-center gap-2">
               <ScrollText size={22} /> Auditoria do Sistema

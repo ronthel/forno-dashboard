@@ -69,12 +69,6 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
       {/* Cabeçalho */}
       <div className="flex justify-between items-center border-b border-slate-800 pb-2.5">
         <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
-          >
-            <Home size={16} /> Início
-          </button>
           <div>
             <h1 className="text-xl font-bold text-amber-500 flex items-center gap-2">
               <Gauge size={22} /> Relatório de OEE por Turno (Meta: {metaAtual}%)

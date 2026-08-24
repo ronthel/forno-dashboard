@@ -98,20 +98,28 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchActiveAlarms]);
 
-  // Remove ao vivo, da aba já aberta, qualquer variável que tenha sido
-  // excluída na tela de Configuração de Variáveis enquanto o dashboard
-  // estava aberto (sem precisar recarregar a página ou navegar pra fora e
-  // voltar). O backend já corrige o layout SALVO no momento da exclusão
-  // (ver removeFieldFromSavedLayout em server.js) — isto aqui só mantém o
-  // estado em memória desta aba sincronizado com aquilo. Só ajusta
-  // `charts` quando algo realmente mudou, pra não interferir numa edição
-  // em andamento (arrastar/redimensionar, etc.).
+  // Mantém a lista de variáveis desta aba já aberta sincronizada com a
+  // tela de Configuração de Variáveis, sem precisar recarregar a página:
+  // (1) variável excluída some sozinha dos gráficos já montados (o backend
+  //     já corrige o layout SALVO no momento da exclusão — ver
+  //     removeFieldFromSavedLayout em server.js — isto aqui só mantém o
+  //     estado em memória desta aba sincronizado com aquilo); e
+  // (2) variável nova passa a aparecer no picker de "criar novo gráfico"
+  //     sem precisar de F5 (antes só era buscada uma vez, no carregamento
+  //     inicial da página).
+  // Só ajusta `charts` quando algo realmente mudou, pra não interferir numa
+  // edição em andamento (arrastar/redimensionar, etc.).
   useEffect(() => {
-    const pruneDeletedFields = async () => {
+    const syncAvailableFields = async () => {
       try {
         const res = await api.get('/api/influx/fields');
         if (!isOk(res) || !Array.isArray(res.data)) return;
         const validFields = res.data;
+
+        setAvailableFields((prev) => {
+          const same = prev.length === validFields.length && prev.every((f) => validFields.includes(f));
+          return same ? prev : validFields;
+        });
 
         setCharts((prevCharts) => {
           let changed = false;
@@ -138,7 +146,7 @@ export default function App() {
       }
     };
 
-    const interval = setInterval(pruneDeletedFields, 15000);
+    const interval = setInterval(syncAvailableFields, 15000);
     return () => clearInterval(interval);
   }, []);
 

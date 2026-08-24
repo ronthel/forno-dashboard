@@ -1,11 +1,22 @@
 import React from 'react';
 import { Home, Gauge, Settings, Sliders, Users, ScrollText, Bell, User, LogOut } from 'lucide-react';
 
-// Barra lateral de navegação entre telas — usada em TODAS as telas do
-// dashboard (não só na principal). O botão da tela em que você já está
-// não aparece, já que não faz sentido "navegar" pra onde você já está.
-// Usuário atual/logout também moraram aqui — antes só existiam no cabeçalho
-// do dashboard, então trocar de usuário ou sair só dava pra fazer de lá.
+// Ordem e posição fixas de propósito — os botões nunca somem nem trocam de
+// lugar conforme a tela muda (só a permissão do usuário decide se aparecem
+// ou não). A tela atual fica destacada (classe "active" abaixo), em vez de
+// escondida como era antes.
+const NAV_ITEMS = [
+  { key: 'dashboard', label: 'Dashboard', icon: Home },
+  { key: 'oee', label: 'Relatório OEE', icon: Gauge },
+  { key: 'configTurnos', label: 'Turnos', icon: Settings, requires: 'canConfig' },
+  { key: 'configSensores', label: 'Variáveis', icon: Sliders, requires: 'canConfig' },
+  { key: 'userManagement', label: 'Usuários', icon: Users, requires: 'canManageUsers' },
+  { key: 'auditLog', label: 'Auditoria', icon: ScrollText, requires: 'canViewAudit' },
+  { key: 'alarms', label: 'Alarmes', icon: Bell },
+];
+
+// Barra lateral de navegação — usada em TODAS as telas do dashboard.
+// Usuário atual/logout também moram aqui, fixados no rodapé.
 export default function Sidebar({
   currentView,
   onNavigate,
@@ -17,6 +28,8 @@ export default function Sidebar({
   onOpenUserModal,
   onLogout,
 }) {
+  const permissions = { canConfig, canManageUsers, canViewAudit };
+
   return (
     <aside className="w-44 shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col gap-1.5 p-3 overflow-y-auto">
       <div className="mb-2 px-0.5">
@@ -24,72 +37,26 @@ export default function Sidebar({
         <p className="text-slate-500 text-[10px]">Dashboard</p>
       </div>
 
-      {currentView !== 'dashboard' && (
-        <button
-          onClick={() => onNavigate('dashboard')}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded text-xs font-semibold transition"
-        >
-          <Home size={15} className="text-amber-400" /> Dashboard
-        </button>
-      )}
+      {NAV_ITEMS.map(({ key, label, icon: Icon, requires }) => {
+        if (requires && !permissions[requires]) return null;
 
-      {currentView !== 'oee' && (
-        <button
-          onClick={() => onNavigate('oee')}
-          className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded text-xs font-semibold transition shadow-md"
-        >
-          <Gauge size={15} /> Relatório OEE
-        </button>
-      )}
+        const isActive = currentView === key;
+        const isAlarmAlert = key === 'alarms' && !isActive && unacknowledgedAlarmsCount > 0;
 
-      {canConfig && currentView !== 'configTurnos' && (
-        <button
-          onClick={() => onNavigate('configTurnos')}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded text-xs font-semibold transition"
-        >
-          <Settings size={15} className="text-amber-400" /> Turnos
-        </button>
-      )}
+        const className = isActive
+          ? 'flex items-center gap-2 bg-amber-600 text-white border border-amber-500 px-3 py-2 rounded text-xs font-semibold shadow-md'
+          : isAlarmAlert
+          ? 'flex items-center gap-2 bg-red-600 text-white border border-red-500 animate-pulse px-3 py-2 rounded text-xs font-semibold transition'
+          : 'flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded text-xs font-semibold transition';
 
-      {canConfig && currentView !== 'configSensores' && (
-        <button
-          onClick={() => onNavigate('configSensores')}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded text-xs font-semibold transition"
-        >
-          <Sliders size={15} className="text-amber-400" /> Variáveis
-        </button>
-      )}
-
-      {canManageUsers && currentView !== 'userManagement' && (
-        <button
-          onClick={() => onNavigate('userManagement')}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded text-xs font-semibold transition"
-        >
-          <Users size={15} className="text-amber-400" /> Usuários
-        </button>
-      )}
-
-      {canViewAudit && currentView !== 'auditLog' && (
-        <button
-          onClick={() => onNavigate('auditLog')}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded text-xs font-semibold transition"
-        >
-          <ScrollText size={15} className="text-amber-400" /> Auditoria
-        </button>
-      )}
-
-      {currentView !== 'alarms' && (
-        <button
-          onClick={() => onNavigate('alarms')}
-          className={`flex items-center gap-2 border px-3 py-2 rounded text-xs font-semibold transition ${
-            unacknowledgedAlarmsCount > 0
-              ? 'bg-red-600 text-white border-red-500 animate-pulse'
-              : 'bg-slate-800 hover:bg-slate-700 text-red-400 border-slate-700'
-          }`}
-        >
-          <Bell size={15} /> Alarmes {unacknowledgedAlarmsCount > 0 && `(${unacknowledgedAlarmsCount})`}
-        </button>
-      )}
+        return (
+          <button key={key} onClick={() => onNavigate(key)} className={className}>
+            <Icon size={15} className={isActive || isAlarmAlert ? '' : 'text-amber-400'} />
+            {label}
+            {key === 'alarms' && unacknowledgedAlarmsCount > 0 && ` (${unacknowledgedAlarmsCount})`}
+          </button>
+        );
+      })}
 
       {/* Usuário/logout fixados embaixo, separados dos atalhos de navegação */}
       <div className="mt-auto pt-2 border-t border-slate-800 flex flex-col gap-1.5">
