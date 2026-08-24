@@ -75,10 +75,16 @@ const { logAudit } = require('./audit');
 async function initPostgres() {
   try {
     await db.query(`
-      CREATE TABLE IF NOT EXISTS dashboard_layouts (
+      -- Cada usuário pode ter vários dashboards nomeados (ex: "Temperaturas
+      -- do Forno", "Pressões") — substitui a antiga dashboard_layouts (um
+      -- layout único por pessoa, versionado por INSERT). ON DELETE CASCADE:
+      -- excluir um usuário leva os dashboards dele junto.
+      CREATE TABLE IF NOT EXISTS dashboards (
         id SERIAL PRIMARY KEY,
-        user_id VARCHAR(50) DEFAULT 'default_user',
-        charts_config JSONB NOT NULL,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        config JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -200,35 +206,23 @@ async function fetchHistorianRegisteredTags() {
   return (searchData.items || []).map((t) => ({ tag_name: t.name }));
 }
 
-// Remove uma variável desativada de qualquer gráfico onde ela apareça no
-// layout salvo do dashboard — chamado só ao DESATIVAR (reativar não devolve
-// a variável aos gráficos automaticamente, o usuário adiciona de novo se
-// quiser). Se um gráfico ficar sem nenhuma variável depois da remoção, o
-// gráfico inteiro é removido (não faz sentido um card vazio). Segue o mesmo
-// padrão de "sempre INSERT" já usado por POST /api/dashboard/layout — nunca
-// sobrescreve o histórico de layouts antigos, só acrescenta a versão nova.
+// Remove uma variável desativada de qualquer gráfico onde ela apareça em
+// QUALQUER dashboard de QUALQUER usuário — chamado só ao DESATIVAR (reativar
+// não devolve a variável aos gráficos automaticamente, o usuário adiciona de
+// novo se quiser). Se um gráfico ficar sem nenhuma variável depois da
+// remoção, o gráfico inteiro é removido (não faz sentido um card vazio).
 //
-// Os layouts agora são pessoais por usuário (ver GET/POST /api/dashboard/layout
-// abaixo), então uma variável desativada precisa ser limpa do layout de
-// TODOS os usuários que a tinham num gráfico — não só de um único "dono".
+// Cada usuário pode ter vários dashboards nomeados (ver ROTAS DE DASHBOARDS
+// abaixo) — precisa varrer todos, de todos os usuários, não só "o" dashboard
+// de alguém.
 async function removeFieldFromSavedLayout(fieldName) {
   try {
-    // Último layout salvo de cada usuário (um dashboard_layouts por user_id,
-    // pegando sempre a linha mais recente — o histórico de versões antigas
-    // não é tocado).
-    const latestPerUser = await db.query(
-      `SELECT DISTINCT ON (user_id) user_id, charts_config
-       FROM dashboard_layouts
-       ORDER BY user_id, id DESC`
-    );
+    const allDashboards = await db.query('SELECT id, config FROM dashboards');
 
     let anyChanged = false;
-    for (const row of latestPerUser.rows) {
-      const stored = row.charts_config;
-      // Compatibilidade com o formato antigo (array puro de gráficos, sem
-      // refreshInterval/timeRange) — ver GET /api/dashboard/layout abaixo.
-      const isOldFormat = Array.isArray(stored);
-      const charts = isOldFormat ? stored : (stored?.charts || []);
+    for (const row of allDashboards.rows) {
+      const stored = row.config;
+      const charts = Array.isArray(stored) ? stored : (stored?.charts || []);
       if (!Array.isArray(charts) || charts.length === 0) continue;
 
       let changed = false;
@@ -246,17 +240,17 @@ async function removeFieldFromSavedLayout(fieldName) {
 
       if (!changed) continue;
 
-      const newConfig = isOldFormat ? updatedCharts : { ...stored, charts: updatedCharts };
+      const newConfig = Array.isArray(stored) ? updatedCharts : { ...stored, charts: updatedCharts };
       await db.query(
-        'INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ($1, $2)',
-        [row.user_id, JSON.stringify(newConfig)]
+        'UPDATE dashboards SET config = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [JSON.stringify(newConfig), row.id]
       );
       anyChanged = true;
     }
 
     return anyChanged;
   } catch (err) {
-    console.error('Erro ao remover variável desativada do layout salvo do dashboard:', err.message);
+    console.error('Erro ao remover variável desativada dos dashboards salvos:', err.message);
     return false;
   }
 }
@@ -269,57 +263,147 @@ app.use('/api/influx', influxRoutes);
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
-// --- ROTAS DO LAYOUT (POSTGRESQL) ---
-// charts_config guarda um objeto { charts, refreshInterval, timeRange } —
-// além de quais gráficos existem, também as preferências de visualização
-// (visibilidade de cada pena já vem dentro de cada gráfico em "charts";
-// atualização e atalho de período são globais do dashboard).
+// --- ROTAS DE DASHBOARDS (POSTGRESQL) ---
+// Cada usuário pode ter VÁRIOS dashboards nomeados (ex: "Temperaturas do
+// Forno", "Pressões") — não é mais um layout único por pessoa. Cada linha
+// de `dashboards` é uma tela: id, dono (user_id), nome, e `config` (jsonb)
+// guardando { charts, refreshInterval, timeRange }, igual ao formato antigo
+// de charts_config. Atualiza em cima da mesma linha (não é mais "sempre
+// INSERT" como o extinto dashboard_layouts) — cada tela tem sua identidade
+// própria (o id), então não precisa de histórico de versões pra saber qual
+// é qual.
 //
-// O layout é pessoal: cada usuário logado só vê e só sobrescreve o próprio
-// (identificado pelo id do token, gravado em user_id como string). Um
-// usuário nunca enxerga o dashboard salvo por outro.
-app.get('/api/dashboard/layout', requireAuth, async (req, res) => {
+// Todas exigem login e sempre filtram por req.user.id — ninguém enxerga ou
+// altera o dashboard de outra pessoa.
+
+// Garante que o usuário sempre tenha pelo menos um dashboard pra abrir —
+// cria um "Principal" vazio na primeira vez que a pessoa acessa e ainda não
+// tem nenhum.
+async function ensureDefaultDashboard(userId) {
+  const existing = await db.query(
+    'SELECT id, name, config, updated_at FROM dashboards WHERE user_id = $1 ORDER BY name',
+    [userId]
+  );
+  if (existing.rows.length > 0) return existing.rows;
+
+  const created = await db.query(
+    `INSERT INTO dashboards (user_id, name, config)
+     VALUES ($1, 'Principal', $2)
+     RETURNING id, name, config, updated_at`,
+    [userId, JSON.stringify({ charts: [], refreshInterval: 5000, timeRange: '1h' })]
+  );
+  return created.rows;
+}
+
+// Lista os dashboards do usuário logado (só id/nome/data — sem o conteúdo
+// completo, que só é buscado quando um deles é efetivamente aberto).
+app.get('/api/dashboards', requireAuth, async (req, res) => {
   try {
-    const result = await db.query(
-      'SELECT charts_config FROM dashboard_layouts WHERE user_id = $1 ORDER BY id DESC LIMIT 1',
-      [String(req.user.id)]
-    );
-    if (result.rows.length === 0) {
-      // "isNew" distingue "nunca foi salvo nada ainda" de "foi salvo um
-      // layout vazio de propósito" — os dois casos pareciam idênticos pro
-      // frontend antes (ambos {charts: []}), e ele tratava um layout vazio
-      // salvo deliberadamente como se fosse "primeira vez", repopulando com
-      // os gráficos padrão sempre que a página recarregava.
-      return res.json({ charts: [], isNew: true });
-    }
-    const stored = result.rows[0].charts_config;
-    // Compatibilidade com layouts salvos antes desta mudança, que guardavam
-    // só o array de gráficos direto (sem as preferências extras).
-    res.json(Array.isArray(stored) ? { charts: stored } : stored);
+    const rows = await ensureDefaultDashboard(req.user.id);
+    res.json(rows.map((r) => ({ id: r.id, name: r.name, updatedAt: r.updated_at })));
   } catch (err) {
-    res.json({ charts: [] });
+    console.error('Erro ao listar dashboards:', err);
+    res.status(500).json({ error: 'Erro ao listar dashboards' });
   }
 });
 
-app.post('/api/dashboard/layout', requireAuth, async (req, res) => {
-  const { charts, refreshInterval, timeRange } = req.body;
+// Cria um dashboard novo, vazio, com o nome informado.
+app.post('/api/dashboards', requireAuth, async (req, res) => {
+  const name = (req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Informe um nome para o dashboard.' });
   try {
-    await db.query(
-      'INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ($1, $2)',
-      [String(req.user.id), JSON.stringify({ charts, refreshInterval, timeRange })]
+    const result = await db.query(
+      `INSERT INTO dashboards (user_id, name, config)
+       VALUES ($1, $2, $3)
+       RETURNING id, name, config, updated_at`,
+      [req.user.id, name, JSON.stringify({ charts: [], refreshInterval: 5000, timeRange: '1h' })]
+    );
+    const row = result.rows[0];
+    logAudit({
+      userId: req.user.id, username: req.user.username, role: req.user.role,
+      action: 'criou dashboard', details: { name }
+    });
+    res.status(201).json({ id: row.id, name: row.name, ...row.config });
+  } catch (err) {
+    console.error('Erro ao criar dashboard:', err);
+    res.status(500).json({ error: 'Erro ao criar dashboard' });
+  }
+});
+
+// Busca um dashboard específico do usuário logado (404 se não existir OU
+// pertencer a outra pessoa — mesma resposta pros dois casos, de propósito,
+// pra não revelar se o id existe mas é de outro usuário).
+app.get('/api/dashboards/:id', requireAuth, async (req, res) => {
+  try {
+    const result = await db.query(
+      'SELECT id, name, config, updated_at FROM dashboards WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Dashboard não encontrado.' });
+    const row = result.rows[0];
+    res.json({ id: row.id, name: row.name, ...row.config });
+  } catch (err) {
+    console.error('Erro ao buscar dashboard:', err);
+    res.status(500).json({ error: 'Erro ao buscar dashboard' });
+  }
+});
+
+// Atualiza o conteúdo (gráficos/preferências) e/ou o nome de um dashboard.
+app.put('/api/dashboards/:id', requireAuth, async (req, res) => {
+  const { charts, refreshInterval, timeRange, name } = req.body;
+  try {
+    const owns = await db.query('SELECT id FROM dashboards WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (owns.rows.length === 0) return res.status(404).json({ error: 'Dashboard não encontrado.' });
+
+    const trimmedName = typeof name === 'string' ? name.trim() : null;
+    if (trimmedName !== null && !trimmedName) {
+      return res.status(400).json({ error: 'O nome do dashboard não pode ficar vazio.' });
+    }
+
+    const result = await db.query(
+      `UPDATE dashboards SET config = $1, updated_at = CURRENT_TIMESTAMP
+       ${trimmedName ? ', name = $3' : ''}
+       WHERE id = $2 RETURNING id, name`,
+      trimmedName
+        ? [JSON.stringify({ charts, refreshInterval, timeRange }), req.params.id, trimmedName]
+        : [JSON.stringify({ charts, refreshInterval, timeRange }), req.params.id]
     );
 
     logAudit({
-      userId: req.user.id,
-      username: req.user.username,
-      role: req.user.role,
-      action: 'salvou layout do dashboard',
-      details: { totalGraficos: Array.isArray(charts) ? charts.length : 0 }
+      userId: req.user.id, username: req.user.username, role: req.user.role,
+      action: 'salvou dashboard',
+      details: { dashboardId: req.params.id, name: result.rows[0].name, totalGraficos: Array.isArray(charts) ? charts.length : 0 }
     });
 
-    res.json({ message: 'Layout salvo!' });
+    res.json({ message: 'Dashboard salvo!' });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao salvar layout' });
+    console.error('Erro ao salvar dashboard:', err);
+    res.status(500).json({ error: 'Erro ao salvar dashboard' });
+  }
+});
+
+// Exclui um dashboard — nunca deixa o usuário sem nenhum (a tela sempre
+// precisa ter pelo menos um dashboard pra abrir).
+app.delete('/api/dashboards/:id', requireAuth, async (req, res) => {
+  try {
+    const countRes = await db.query('SELECT count(*) FROM dashboards WHERE user_id = $1', [req.user.id]);
+    if (Number(countRes.rows[0].count) <= 1) {
+      return res.status(400).json({ error: 'Não é possível excluir o único dashboard.' });
+    }
+    const result = await db.query(
+      'DELETE FROM dashboards WHERE id = $1 AND user_id = $2 RETURNING name',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Dashboard não encontrado.' });
+
+    logAudit({
+      userId: req.user.id, username: req.user.username, role: req.user.role,
+      action: 'excluiu dashboard', details: { name: result.rows[0].name }
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao excluir dashboard:', err);
+    res.status(500).json({ error: 'Erro ao excluir dashboard' });
   }
 });
 

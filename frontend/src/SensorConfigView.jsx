@@ -59,6 +59,7 @@ export default function SensorConfigView({ onBack }) {
   const [plcTagsLoading, setPlcTagsLoading] = useState(false);
   const [plcTagsError, setPlcTagsError] = useState('');
   const [manualFieldName, setManualFieldName] = useState('');
+  const [selectedPlcTags, setSelectedPlcTags] = useState(new Set());
 
   const fetchConfig = useCallback(async () => {
     try {
@@ -115,14 +116,20 @@ export default function SensorConfigView({ onBack }) {
   // "desativada" para separar numa segunda lista, é uma lista só.
   const activeFields = availableFields.filter(matchesFieldFilter);
 
+  // Troca de variável selecionada (ou adicionar uma nova, ver openNewFieldForm)
+  // sempre passava por cima da edição feita na variável anterior sem salvar
+  // nada: currentConfig é só um "rascunho" de uma variável por vez, e só a
+  // que estivesse selecionada na hora do clique em Salvar ia pro POST. Por
+  // isso, adicionar A, depois B, depois C e só então salvar fazia A e B
+  // desaparecerem — nunca chegaram a entrar em sensorConfigs. Agora, antes
+  // de trocar, o rascunho da variável que está saindo é gravado em
+  // sensorConfigs (só em memória — Salvar continua sendo a única ação que
+  // grava no PostgreSQL), então o rascunho de nenhuma delas se perde até o
+  // usuário efetivamente clicar em Salvar.
   const handleSelectField = (field) => {
+    setSensorConfigs((prev) => (selectedField ? { ...prev, [selectedField]: currentConfig } : prev));
     setSelectedField(field);
     setConfirmDeleteField(null);
-    if (sensorConfigs[field]) {
-      setCurrentConfig(sensorConfigs[field]);
-    } else {
-      setCurrentConfig(DEFAULT_CONFIG_FOR(field, sensorConfigs));
-    }
   };
 
   const handleChange = (key, value) => {
@@ -210,11 +217,13 @@ export default function SensorConfigView({ onBack }) {
         .slice(0, 30);
 
   const openNewFieldForm = (fieldName) => {
+    // Mesmo motivo do handleSelectField: preserva o rascunho da variável que
+    // estava sendo editada antes de trocar pra esta nova.
+    setSensorConfigs((prev) => (selectedField ? { ...prev, [selectedField]: currentConfig } : prev));
     if (!availableFields.includes(fieldName)) {
       setAvailableFields((prev) => [...prev, fieldName]);
     }
     setSelectedField(fieldName);
-    setCurrentConfig(DEFAULT_CONFIG_FOR(fieldName, sensorConfigs));
     setShowAddPanel(false);
     setPlcSearch('');
     setManualFieldName('');
@@ -223,6 +232,43 @@ export default function SensorConfigView({ onBack }) {
 
   const handlePickPlcTag = (tagName) => {
     openNewFieldForm(tagName);
+  };
+
+  const toggleSelectedPlcTag = (tagName) => {
+    setSelectedPlcTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tagName)) next.delete(tagName);
+      else next.add(tagName);
+      return next;
+    });
+  };
+
+  // Adiciona várias tags marcadas de uma vez (checkbox na busca). Cada uma
+  // já entra com uma config padrão própria em sensorConfigs — se essa
+  // atribuição ficasse só pra quando o usuário abrisse a tag individualmente
+  // (como o fluxo de um clique só fazia), marcar 3 e nunca clicar em cada
+  // uma reproduziria de novo o bug de "só a última é salva".
+  const openMultipleFieldsForm = (fieldNames) => {
+    if (fieldNames.length === 0) return;
+    setSensorConfigs((prev) => {
+      let working = selectedField ? { ...prev, [selectedField]: currentConfig } : { ...prev };
+      for (const name of fieldNames) {
+        if (!working[name]) {
+          working = { ...working, [name]: DEFAULT_CONFIG_FOR(name, working) };
+        }
+      }
+      return working;
+    });
+    setAvailableFields((prev) => {
+      const toAdd = fieldNames.filter((n) => !prev.includes(n));
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
+    setSelectedField(fieldNames[fieldNames.length - 1]);
+    setShowAddPanel(false);
+    setPlcSearch('');
+    setManualFieldName('');
+    setSelectedPlcTags(new Set());
+    setActionError('');
   };
 
   const handleManualAdd = () => {
@@ -239,6 +285,7 @@ export default function SensorConfigView({ onBack }) {
     setShowAddPanel(false);
     setPlcSearch('');
     setManualFieldName('');
+    setSelectedPlcTags(new Set());
   };
 
   return (
@@ -516,18 +563,41 @@ export default function SensorConfigView({ onBack }) {
                     <span className="text-slate-500 text-xs text-center py-3">Nenhuma tag encontrada para "{plcSearch}".</span>
                   ) : (
                     filteredPlcTags.map((tag) => (
-                      <button
+                      <div
                         key={tag.tag_name}
-                        type="button"
-                        onClick={() => handlePickPlcTag(tag.tag_name)}
-                        className="flex items-center justify-between text-left bg-slate-900/70 hover:bg-amber-600/90 hover:text-white border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 transition"
+                        className="flex items-center gap-2 bg-slate-900/70 hover:bg-slate-700/60 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 transition"
                       >
-                        <span>{tag.tag_name}</span>
-                        <span className="text-[10px] opacity-70 uppercase">{tag.data_type}</span>
-                      </button>
+                        <input
+                          type="checkbox"
+                          checked={selectedPlcTags.has(tag.tag_name)}
+                          onChange={() => toggleSelectedPlcTag(tag.tag_name)}
+                          onClick={(e) => e.stopPropagation()}
+                          title="Marcar para adicionar junto com outras"
+                          className="size-3.5 shrink-0 accent-amber-500 cursor-pointer"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handlePickPlcTag(tag.tag_name)}
+                          title="Adicionar só esta agora"
+                          className="flex-1 flex items-center justify-between text-left hover:text-amber-300 transition"
+                        >
+                          <span>{tag.tag_name}</span>
+                          <span className="text-[10px] opacity-70 uppercase">{tag.data_type}</span>
+                        </button>
+                      </div>
                     ))
                   )}
                 </div>
+              )}
+
+              {selectedPlcTags.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => openMultipleFieldsForm(Array.from(selectedPlcTags))}
+                  className="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2.5 rounded-lg transition shadow"
+                >
+                  <Plus size={14} /> Adicionar {selectedPlcTags.size} selecionada{selectedPlcTags.size > 1 ? 's' : ''} à lista
+                </button>
               )}
 
               <div className="border-t border-slate-700 pt-4 flex flex-col gap-2">

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown, Users, ScrollText, ShieldCheck, Loader2, Search } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Plus, Clock, RefreshCw, Save, Check, LogOut, User, Calendar, X, Bell, Maximize, Minimize, Volume2, VolumeX, Gauge, Settings, Sliders, ChevronDown, Users, ScrollText, ShieldCheck, Loader2, Search, LayoutGrid, Pencil, Trash2 } from 'lucide-react';
 import api, { isOk } from './api';
 import ChartCard from './ChartCard';
 import Login from './Login';
@@ -40,6 +40,19 @@ export default function App() {
   const [availableFields, setAvailableFields] = useState([]);
   const [sensorConfigs, setSensorConfigs] = useState({});
   const [selectedFields, setSelectedFields] = useState([]);
+
+  // Cada usuário pode ter vários dashboards nomeados (ex: "Temperaturas do
+  // Forno", "Pressões") — dashboardsList é só {id, name, updatedAt} de cada
+  // um (pro seletor); o conteúdo completo (charts/refreshInterval/timeRange)
+  // só é buscado do que estiver aberto no momento, guardado em
+  // currentDashboardId.
+  const [dashboardsList, setDashboardsList] = useState([]);
+  const [currentDashboardId, setCurrentDashboardId] = useState(null);
+  const [isDashboardPickerOpen, setIsDashboardPickerOpen] = useState(false);
+  const [newDashboardName, setNewDashboardName] = useState('');
+  const [renamingDashboard, setRenamingDashboard] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [dashboardError, setDashboardError] = useState('');
   
   const [timeRange, setTimeRange] = useState('1h');
   const [refreshInterval, setRefreshInterval] = useState(5000);
@@ -190,11 +203,23 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Protege contra respostas "fora de ordem": se o usuário logar/trocar de
+  // conta de novo antes da busca anterior terminar (ex: sair do operador e
+  // entrar como wtecc rapidinho), a resposta antiga — ainda em voo, pedida
+  // com o token de quem já saiu — pode chegar DEPOIS da nova e sobrescrever
+  // os dados certos com os de outra pessoa. Cada chamada de loadInitialLayout
+  // pega um número de geração; se uma geração mais nova já começou antes de
+  // uma etapa terminar, essa resposta é descartada em vez de aplicada.
+  const loadGenerationRef = useRef(0);
+
   const loadInitialLayout = async () => {
+    const myGeneration = ++loadGenerationRef.current;
+    const isStale = () => myGeneration !== loadGenerationRef.current;
     try {
       let configs = {};
       try {
         const configRes = await api.get('/api/config/sensores');
+        if (isStale()) return;
         if (isOk(configRes)) {
           configs = configRes.data;
           setSensorConfigs(configs);
@@ -203,46 +228,45 @@ export default function App() {
         console.error('Erro ao buscar configs de sensores:', err);
       }
 
-      const res = await api.get('/api/dashboard/layout');
-      if (isOk(res)) {
-        // Compatibilidade com layouts salvos antes desta versão, que
-        // guardavam só o array de gráficos direto (sem as preferências de
-        // atualização/período/visibilidade das penas).
-        const layoutData = res.data;
-        const savedCharts = Array.isArray(layoutData) ? layoutData : (layoutData?.charts || []);
+      // Lista os dashboards do usuário (o backend garante que sempre existe
+      // pelo menos um — "Principal", criado automaticamente na primeira
+      // visita) e abre o último que essa pessoa tinha aberto nesse
+      // navegador, ou o mais recentemente atualizado se não houver lembrança
+      // (primeiro acesso, ou o lembrado foi excluído nesse meio-tempo).
+      const dashRes = await api.get('/api/dashboards');
+      if (isStale()) return;
+      if (isOk(dashRes)) {
+        const list = Array.isArray(dashRes.data) ? dashRes.data : [];
+        setDashboardsList(list);
 
-        // "isNew" (ver GET /api/dashboard/layout) é a única forma confiável
-        // de saber se isto é de verdade a primeira vez (nunca foi salvo
-        // nada) — um array vazio sozinho não diferencia isso de "usuário
-        // apagou todos os gráficos e salvou de propósito". Sem essa
-        // distinção, um layout vazio salvo deliberadamente era substituído
-        // pelos gráficos padrão (CTP01/CTP02) toda vez que a página
-        // recarregava ou o usuário voltava de outra tela.
-        const isTrulyFirstRun = !Array.isArray(layoutData) && layoutData?.isNew === true;
-
-        if (isTrulyFirstRun) {
-          setCharts([
-            { id: '1', title: 'Sensor - CTP01', fields: ['CTP01'], minLimit: 100, maxLimit: 800, hiddenFields: [] },
-            { id: '2', title: 'Sensor - CTP02', fields: ['CTP02'], minLimit: 100, maxLimit: 800, hiddenFields: [] }
-          ]);
-        } else {
-          // Compatibilidade com layouts antigos salvos com "field" (string única)
-          // em vez de "fields" (array) — normaliza para o novo formato.
-          const normalizedCharts = (Array.isArray(savedCharts) ? savedCharts : []).map((c) => ({
-            ...c,
-            fields: Array.isArray(c.fields) ? c.fields : (c.field ? [c.field] : []),
-            hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields : [],
-          }));
-          setCharts(normalizedCharts);
+        const remembered = localStorage.getItem(`lastDashboardId_${currentUser}`);
+        let target = list.find((d) => String(d.id) === remembered);
+        if (!target && list.length > 0) {
+          target = [...list].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0];
         }
 
-        if (!Array.isArray(layoutData)) {
-          if (layoutData?.refreshInterval !== undefined) setRefreshInterval(layoutData.refreshInterval);
-          if (layoutData?.timeRange) setTimeRange(layoutData.timeRange);
+        if (target) {
+          const detailRes = await api.get(`/api/dashboards/${target.id}`);
+          if (isStale()) return;
+          if (isOk(detailRes)) {
+            const data = detailRes.data;
+            // Compatibilidade com layouts antigos salvos com "field" (string
+            // única) em vez de "fields" (array) — normaliza para o formato novo.
+            const normalizedCharts = (Array.isArray(data.charts) ? data.charts : []).map((c) => ({
+              ...c,
+              fields: Array.isArray(c.fields) ? c.fields : (c.field ? [c.field] : []),
+              hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields : [],
+            }));
+            setCharts(normalizedCharts);
+            if (data.refreshInterval !== undefined) setRefreshInterval(data.refreshInterval);
+            if (data.timeRange) setTimeRange(data.timeRange);
+            setCurrentDashboardId(target.id);
+          }
         }
       }
 
       const fieldsRes = await api.get('/api/influx/fields');
+      if (isStale()) return;
       if (isOk(fieldsRes)) {
         const fieldsData = fieldsRes.data;
         if (Array.isArray(fieldsData) && fieldsData.length > 0) {
@@ -253,15 +277,22 @@ export default function App() {
 
       setIsServerDown(false);
     } catch (err) {
+      if (isStale()) return;
       console.error('Erro na conexão com o backend:', err);
       setIsServerDown(true);
       setWasServerDown(true);
     }
   };
 
+  // Recarrega o dashboard (gráficos, config de sensores etc.) toda vez que o
+  // usuário autenticado muda — tanto no login normal quanto no "Trocar
+  // usuário" (handleSwitchUser), que troca o token sem sair da tela atual.
+  // Sem isso, os dashboards (por usuário — ver /api/dashboards) carregados
+  // pra a pessoa anterior continuavam na tela emprestados pra quem entrou
+  // depois, porque nada mandava buscar de novo.
   useEffect(() => {
-    loadInitialLayout();
-  }, []);
+    if (isAuthenticated) loadInitialLayout();
+  }, [isAuthenticated, currentUser]);
 
   const toggleKioskMode = () => {
     if (!document.fullscreenElement) {
@@ -301,8 +332,15 @@ export default function App() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setCurrentUser('');
     setCurrentUserRole('');
     setMustChangePassword(false);
+    // Limpa o dashboard da pessoa que está saindo — sem isso, ele ficava em
+    // memória (mesmo escondido atrás da tela de login) e podia reaparecer
+    // emprestado pro próximo login se a busca nova demorasse ou falhasse.
+    setCharts([]);
+    setDashboardsList([]);
+    setCurrentDashboardId(null);
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('currentUserRole');
@@ -312,8 +350,15 @@ export default function App() {
     setCurrentView('dashboard');
   };
 
-  // Troca de usuário: mesmo fluxo do login, só que sem sair da tela atual do dashboard.
+  // Troca de usuário: mesmo fluxo do login, só que sem sair da tela atual do
+  // dashboard. Limpa o layout atual antes de trocar pra não deixar o
+  // dashboard da pessoa anterior visível nem por um instante — o efeito
+  // acima (dependente de isAuthenticated/currentUser) já busca o layout do
+  // novo usuário em seguida.
   const handleSwitchUser = (username, token, role, mustChangePasswordFlag) => {
+    setCharts([]);
+    setDashboardsList([]);
+    setCurrentDashboardId(null);
     handleLoginSuccess(username, token, role, mustChangePasswordFlag);
   };
 
@@ -544,11 +589,13 @@ export default function App() {
   }
 
   const handleSaveLayout = async () => {
+    if (!currentDashboardId) return;
     try {
       // Além de quais gráficos existem, salva também as preferências de
       // visualização (visibilidade de cada pena já vem dentro de cada
       // gráfico em "charts"; atualização e atalho de período são globais).
-      const response = await api.post('/api/dashboard/layout', { charts, refreshInterval, timeRange });
+      // Sempre no dashboard atualmente aberto — nunca cria um novo aqui.
+      const response = await api.put(`/api/dashboards/${currentDashboardId}`, { charts, refreshInterval, timeRange });
 
       if (isOk(response)) {
         setSavedSuccess(true);
@@ -560,6 +607,103 @@ export default function App() {
       setWasServerDown(true);
     }
   };
+
+  // --- Troca / criação / renomeação / exclusão de dashboards ---
+  const switchDashboard = async (id) => {
+    if (id === currentDashboardId) {
+      setIsDashboardPickerOpen(false);
+      return;
+    }
+    // Mesma trava de loadInitialLayout: se o usuário logar/trocar de conta
+    // enquanto essa troca de dashboard ainda está em voo, a resposta velha
+    // não pode aplicar por cima dos dados da conta nova.
+    const myGeneration = ++loadGenerationRef.current;
+    setDashboardError('');
+    try {
+      const res = await api.get(`/api/dashboards/${id}`);
+      if (myGeneration !== loadGenerationRef.current) return;
+      if (isOk(res)) {
+        const data = res.data;
+        const normalizedCharts = (Array.isArray(data.charts) ? data.charts : []).map((c) => ({
+          ...c,
+          fields: Array.isArray(c.fields) ? c.fields : (c.field ? [c.field] : []),
+          hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields : [],
+        }));
+        setCharts(normalizedCharts);
+        if (data.refreshInterval !== undefined) setRefreshInterval(data.refreshInterval);
+        if (data.timeRange) setTimeRange(data.timeRange);
+        setCurrentDashboardId(id);
+        localStorage.setItem(`lastDashboardId_${currentUser}`, String(id));
+      } else {
+        setDashboardError(res.data?.error || 'Erro ao abrir dashboard.');
+      }
+    } catch (err) {
+      setDashboardError('Erro ao abrir dashboard.');
+    }
+    setIsDashboardPickerOpen(false);
+  };
+
+  const handleCreateDashboard = async () => {
+    const name = newDashboardName.trim();
+    if (!name) return;
+    setDashboardError('');
+    try {
+      const res = await api.post('/api/dashboards', { name });
+      if (isOk(res)) {
+        const created = res.data;
+        setDashboardsList((prev) => [...prev, { id: created.id, name: created.name, updatedAt: new Date().toISOString() }]);
+        setCharts(Array.isArray(created.charts) ? created.charts : []);
+        setRefreshInterval(created.refreshInterval ?? 5000);
+        setTimeRange(created.timeRange || '1h');
+        setCurrentDashboardId(created.id);
+        localStorage.setItem(`lastDashboardId_${currentUser}`, String(created.id));
+        setNewDashboardName('');
+        setIsDashboardPickerOpen(false);
+      } else {
+        setDashboardError(res.data?.error || 'Erro ao criar dashboard.');
+      }
+    } catch (err) {
+      setDashboardError('Erro ao criar dashboard.');
+    }
+  };
+
+  const handleRenameDashboard = async () => {
+    const name = renameValue.trim();
+    if (!name || !currentDashboardId) return;
+    setDashboardError('');
+    try {
+      const res = await api.put(`/api/dashboards/${currentDashboardId}`, { charts, refreshInterval, timeRange, name });
+      if (isOk(res)) {
+        setDashboardsList((prev) => prev.map((d) => (d.id === currentDashboardId ? { ...d, name } : d)));
+        setRenamingDashboard(false);
+      } else {
+        setDashboardError(res.data?.error || 'Erro ao renomear dashboard.');
+      }
+    } catch (err) {
+      setDashboardError('Erro ao renomear dashboard.');
+    }
+  };
+
+  const handleDeleteDashboard = async (id) => {
+    if (!window.confirm('Excluir este dashboard? Essa ação não pode ser desfeita.')) return;
+    setDashboardError('');
+    try {
+      const res = await api.delete(`/api/dashboards/${id}`);
+      if (isOk(res)) {
+        const remaining = dashboardsList.filter((d) => d.id !== id);
+        setDashboardsList(remaining);
+        if (id === currentDashboardId && remaining.length > 0) {
+          switchDashboard(remaining[0].id);
+        }
+      } else {
+        setDashboardError(res.data?.error || 'Erro ao excluir dashboard.');
+      }
+    } catch (err) {
+      setDashboardError('Erro ao excluir dashboard.');
+    }
+  };
+
+  const currentDashboardName = dashboardsList.find((d) => d.id === currentDashboardId)?.name || 'Dashboard';
 
   const handleAddChart = (e) => {
     e.preventDefault();
@@ -604,13 +748,123 @@ export default function App() {
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
       <header className="flex flex-col gap-3 border-b border-slate-800 pb-3">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-amber-500">
-              Dashboard - Forno Industrial
-            </h1>
+          <div className="relative">
+            {renamingDashboard ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRenameDashboard();
+                    if (e.key === 'Escape') setRenamingDashboard(false);
+                  }}
+                  maxLength={80}
+                  className="bg-slate-800 border border-amber-500 rounded px-2 py-1 text-xl font-bold text-amber-500 focus:outline-none"
+                />
+                <button type="button" onClick={handleRenameDashboard} className="text-emerald-400 hover:text-emerald-300 p-1" title="Confirmar">
+                  <Check size={18} />
+                </button>
+                <button type="button" onClick={() => setRenamingDashboard(false)} className="text-slate-400 hover:text-white p-1" title="Cancelar">
+                  <X size={18} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsDashboardPickerOpen((prev) => !prev)}
+                className="flex items-center gap-1.5 text-xl font-bold text-amber-500 hover:text-amber-400 transition"
+                title="Trocar de dashboard"
+              >
+                <LayoutGrid size={18} />
+                {currentDashboardName}
+                <ChevronDown size={16} className={`transition-transform ${isDashboardPickerOpen ? 'rotate-180' : ''}`} />
+              </button>
+            )}
             <p className="text-slate-400 text-xs">
               Monitoramento de sensores e variáveis historizadas em tempo real
             </p>
+
+            {isDashboardPickerOpen && (
+              <div className="absolute top-full left-0 mt-1 z-30 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-72 flex flex-col p-2">
+                <p className="text-[10px] text-slate-400 px-1.5 pb-1 uppercase font-semibold">Seus dashboards</p>
+
+                {dashboardError && (
+                  <div className="flex items-center gap-1.5 bg-red-900/40 border border-red-700 text-red-200 text-[11px] rounded px-2 py-1.5 mb-1.5">
+                    <span className="flex-1">{dashboardError}</span>
+                    <button type="button" onClick={() => setDashboardError('')} className="text-red-300 hover:text-white shrink-0">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1 max-h-56 overflow-y-auto mb-2">
+                  {dashboardsList.map((d) => (
+                    <div
+                      key={d.id}
+                      className={`flex items-center gap-1 rounded-lg ${
+                        d.id === currentDashboardId ? 'bg-amber-600/20 border border-amber-500/40' : 'hover:bg-slate-700/60'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => switchDashboard(d.id)}
+                        className={`flex-1 text-left px-2.5 py-1.5 text-xs truncate ${
+                          d.id === currentDashboardId ? 'text-amber-300 font-semibold' : 'text-slate-200'
+                        }`}
+                      >
+                        {d.name}
+                      </button>
+                      {d.id === currentDashboardId && (
+                        <button
+                          type="button"
+                          title="Renomear"
+                          onClick={() => {
+                            setRenameValue(d.name);
+                            setRenamingDashboard(true);
+                            setIsDashboardPickerOpen(false);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-amber-400"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                      {dashboardsList.length > 1 && (
+                        <button
+                          type="button"
+                          title="Excluir"
+                          onClick={() => handleDeleteDashboard(d.id)}
+                          className="p-1.5 mr-0.5 text-slate-400 hover:text-red-400"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-slate-700 pt-2 flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newDashboardName}
+                    onChange={(e) => setNewDashboardName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateDashboard(); }}
+                    placeholder="Nome do novo dashboard"
+                    maxLength={80}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateDashboard}
+                    disabled={!newDashboardName.trim()}
+                    className="flex items-center gap-1 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white text-xs font-semibold px-2 py-1.5 rounded transition"
+                  >
+                    <Plus size={13} /> Criar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
@@ -674,7 +928,7 @@ export default function App() {
                     return !prev;
                   });
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none font-mono min-w-[140px] justify-between"
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none font-mono w-[140px] shrink-0 justify-between"
               >
                 <span className="truncate">
                   {selectedFields.length === 0
