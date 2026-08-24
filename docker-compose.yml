@@ -28,23 +28,6 @@ services:
     volumes:
       - influxdb_data:/var/lib/influxdb3/data
 
-  # Instância isolada, só para testes de integração externos (ex: app de um
-  # terceiro validando escrita de dados). Sem nenhum caminho de acesso ao
-  # InfluxDB de produção acima — banco, volume e token completamente separados.
-  influxdb-staging:
-    image: influxdb:3-core
-    restart: unless-stopped
-    ports:
-      - "8182:8181"
-    command:
-      - influxdb3
-      - serve
-      - --node-id=forno-staging-node0
-      - --object-store=file
-      - --data-dir=/var/lib/influxdb3/data
-    volumes:
-      - influxdb_staging_data:/var/lib/influxdb3/data
-
   # TimescaleDB próprio do "Wtecc Historian" (app do parceiro externo) — guarda
   # cadastro de CLPs/tags e o histórico bruto dele. Independente do postgres
   # de produção acima (bancos, credenciais e volumes completamente separados).
@@ -120,7 +103,7 @@ services:
       context: ./historian-admin/frontend
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://192.168.15.103:8000
+      VITE_API_URL: http://${HOST_LAN_IP}:8000
     ports:
       - "3001:3001"
     depends_on:
@@ -150,16 +133,20 @@ services:
     env_file:
       - ./frontend/.env
     environment:
-      VITE_API_URL: http://192.168.15.103:5000
+      VITE_API_URL: http://${HOST_LAN_IP}:5000
     ports:
       - "3000:3000"
     depends_on:
       - backend
 
+  # Coletor antigo, substituído pelo historian-collector — mantido só como
+  # caminho de rollback. Não sobe por padrão (perfil "legacy"); pra ligar:
+  # docker compose --profile legacy up -d plc-service
   plc-service:
     build:
       context: ./plc-service
     restart: unless-stopped
+    profiles: ["legacy"]
     env_file:
       - ./plc-service/.env
     environment:
@@ -170,5 +157,4 @@ services:
 volumes:
   postgres_data:
   influxdb_data:
-  influxdb_staging_data:
   historian_db_data:
