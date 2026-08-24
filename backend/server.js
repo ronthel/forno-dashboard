@@ -29,6 +29,23 @@ const requireRole = (allowedRoles) => (req, res, next) => {
   }
 };
 
+// Middleware: exige só um login válido, de qualquer papel — usado nas rotas
+// de layout do dashboard, que agora são pessoais por usuário (cada um só
+// enxerga e só sobrescreve o próprio layout, nunca o de outra pessoa).
+const requireAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ error: 'Login necessário para esta ação.' });
+  }
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
+  }
+};
+
 // Inicialização do Express
 const app = express();
 app.use(cors());
@@ -53,21 +70,6 @@ const influxDB = new InfluxDBClient({
 // Conexão única com o PostgreSQL, compartilhada com routes/auth.js (ver db.js)
 const db = require('./db');
 const { logAudit } = require('./audit');
-
-// Extrai o usuário do token, se houver — usado só para IDENTIFICAR quem fez
-// uma ação em rotas que continuam abertas de propósito (ex.: salvar layout),
-// não para bloquear o acesso. Se não houver token válido, retorna null e a
-// ação segue normalmente, só sem um autor identificado no log de auditoria.
-const getUserFromRequest = (req) => {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) return null;
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (err) {
-    return null;
-  }
-};
 
 // Criar tabelas no PostgreSQL ao iniciar
 async function initPostgres() {
@@ -198,7 +200,6 @@ async function fetchHistorianRegisteredTags() {
   return (searchData.items || []).map((t) => ({ tag_name: t.name }));
 }
 
-// Reescreve plc-service/monitored_tags.json com as variáveis ATIVAS no
 // Remove uma variável desativada de qualquer gráfico onde ela apareça no
 // layout salvo do dashboard — chamado só ao DESATIVAR (reativar não devolve
 // a variável aos gráficos automaticamente, o usuário adiciona de novo se
@@ -206,41 +207,54 @@ async function fetchHistorianRegisteredTags() {
 // gráfico inteiro é removido (não faz sentido um card vazio). Segue o mesmo
 // padrão de "sempre INSERT" já usado por POST /api/dashboard/layout — nunca
 // sobrescreve o histórico de layouts antigos, só acrescenta a versão nova.
+//
+// Os layouts agora são pessoais por usuário (ver GET/POST /api/dashboard/layout
+// abaixo), então uma variável desativada precisa ser limpa do layout de
+// TODOS os usuários que a tinham num gráfico — não só de um único "dono".
 async function removeFieldFromSavedLayout(fieldName) {
   try {
-    const result = await db.query(
-      "SELECT charts_config FROM dashboard_layouts WHERE user_id = 'default_user' ORDER BY id DESC LIMIT 1"
+    // Último layout salvo de cada usuário (um dashboard_layouts por user_id,
+    // pegando sempre a linha mais recente — o histórico de versões antigas
+    // não é tocado).
+    const latestPerUser = await db.query(
+      `SELECT DISTINCT ON (user_id) user_id, charts_config
+       FROM dashboard_layouts
+       ORDER BY user_id, id DESC`
     );
-    if (result.rows.length === 0) return false;
 
-    const stored = result.rows[0].charts_config;
-    // Compatibilidade com o formato antigo (array puro de gráficos, sem
-    // refreshInterval/timeRange) — ver GET /api/dashboard/layout abaixo.
-    const isOldFormat = Array.isArray(stored);
-    const charts = isOldFormat ? stored : (stored?.charts || []);
-    if (!Array.isArray(charts) || charts.length === 0) return false;
+    let anyChanged = false;
+    for (const row of latestPerUser.rows) {
+      const stored = row.charts_config;
+      // Compatibilidade com o formato antigo (array puro de gráficos, sem
+      // refreshInterval/timeRange) — ver GET /api/dashboard/layout abaixo.
+      const isOldFormat = Array.isArray(stored);
+      const charts = isOldFormat ? stored : (stored?.charts || []);
+      if (!Array.isArray(charts) || charts.length === 0) continue;
 
-    let changed = false;
-    const updatedCharts = charts
-      .map((c) => {
-        if (!Array.isArray(c.fields) || !c.fields.includes(fieldName)) return c;
-        changed = true;
-        return {
-          ...c,
-          fields: c.fields.filter((f) => f !== fieldName),
-          hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields.filter((f) => f !== fieldName) : c.hiddenFields
-        };
-      })
-      .filter((c) => !Array.isArray(c.fields) || c.fields.length > 0);
+      let changed = false;
+      const updatedCharts = charts
+        .map((c) => {
+          if (!Array.isArray(c.fields) || !c.fields.includes(fieldName)) return c;
+          changed = true;
+          return {
+            ...c,
+            fields: c.fields.filter((f) => f !== fieldName),
+            hiddenFields: Array.isArray(c.hiddenFields) ? c.hiddenFields.filter((f) => f !== fieldName) : c.hiddenFields
+          };
+        })
+        .filter((c) => !Array.isArray(c.fields) || c.fields.length > 0);
 
-    if (!changed) return false;
+      if (!changed) continue;
 
-    const newConfig = isOldFormat ? updatedCharts : { ...stored, charts: updatedCharts };
-    await db.query(
-      "INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ('default_user', $1)",
-      [JSON.stringify(newConfig)]
-    );
-    return true;
+      const newConfig = isOldFormat ? updatedCharts : { ...stored, charts: updatedCharts };
+      await db.query(
+        'INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ($1, $2)',
+        [row.user_id, JSON.stringify(newConfig)]
+      );
+      anyChanged = true;
+    }
+
+    return anyChanged;
   } catch (err) {
     console.error('Erro ao remover variável desativada do layout salvo do dashboard:', err.message);
     return false;
@@ -260,10 +274,15 @@ app.use('/api/auth', authRoutes);
 // além de quais gráficos existem, também as preferências de visualização
 // (visibilidade de cada pena já vem dentro de cada gráfico em "charts";
 // atualização e atalho de período são globais do dashboard).
-app.get('/api/dashboard/layout', async (req, res) => {
+//
+// O layout é pessoal: cada usuário logado só vê e só sobrescreve o próprio
+// (identificado pelo id do token, gravado em user_id como string). Um
+// usuário nunca enxerga o dashboard salvo por outro.
+app.get('/api/dashboard/layout', requireAuth, async (req, res) => {
   try {
     const result = await db.query(
-      "SELECT charts_config FROM dashboard_layouts WHERE user_id = 'default_user' ORDER BY id DESC LIMIT 1"
+      'SELECT charts_config FROM dashboard_layouts WHERE user_id = $1 ORDER BY id DESC LIMIT 1',
+      [String(req.user.id)]
     );
     if (result.rows.length === 0) {
       // "isNew" distingue "nunca foi salvo nada ainda" de "foi salvo um
@@ -282,22 +301,18 @@ app.get('/api/dashboard/layout', async (req, res) => {
   }
 });
 
-app.post('/api/dashboard/layout', async (req, res) => {
+app.post('/api/dashboard/layout', requireAuth, async (req, res) => {
   const { charts, refreshInterval, timeRange } = req.body;
   try {
     await db.query(
-      "INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ('default_user', $1)",
-      [JSON.stringify({ charts, refreshInterval, timeRange })]
+      'INSERT INTO dashboard_layouts (user_id, charts_config) VALUES ($1, $2)',
+      [String(req.user.id), JSON.stringify({ charts, refreshInterval, timeRange })]
     );
 
-    // Rota aberta de propósito (sem exigir login) — se mesmo assim vier um
-    // token válido (caso normal, já que só a tela logada chama isso), usamos
-    // ele só para identificar o autor no log de auditoria.
-    const user = getUserFromRequest(req);
     logAudit({
-      userId: user?.id,
-      username: user?.username,
-      role: user?.role,
+      userId: req.user.id,
+      username: req.user.username,
+      role: req.user.role,
       action: 'salvou layout do dashboard',
       details: { totalGraficos: Array.isArray(charts) ? charts.length : 0 }
     });
