@@ -1,5 +1,6 @@
 from sqlalchemy import (
-    Column, Integer, String, Boolean, Numeric, ForeignKey, JSON, DateTime, func
+    Column, Integer, String, Boolean, Numeric, ForeignKey, JSON, DateTime, func,
+    UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -49,3 +50,14 @@ class Tag(Base):
 
     plc = relationship("PLC", back_populates="tags", foreign_keys=[plc_id])
     trigger_tag = relationship("Tag", remote_side=[id])
+
+    # Duas tags do mesmo CLP não podem ter o mesmo nome, nem o mesmo endereço
+    # (mesmo endereço = mesma variável física do CLP sendo lida duas vezes
+    # sob nomes diferentes — quase sempre um clone esquecido de ajustar).
+    # "tags_plc_id_name_key" já existia direto no banco (criada fora do
+    # SQLAlchemy); replicada aqui pra instalações novas também ganharem essa
+    # trava. "tags_plc_id_address_key" é nova.
+    __table_args__ = (
+        UniqueConstraint("plc_id", "name", name="tags_plc_id_name_key"),
+        UniqueConstraint("plc_id", "address", name="tags_plc_id_address_key"),
+    )

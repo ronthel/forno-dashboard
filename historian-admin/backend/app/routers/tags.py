@@ -216,13 +216,28 @@ def create_tag(payload: schemas.TagCreate, db: Session = Depends(get_db), _role=
     data = payload.model_dump()
     _validate_logging_rule(data, db)
 
+    # Checagem prévia (em vez de só deixar o IntegrityError estourar) pra dar
+    # uma mensagem específica sobre QUAL campo colidiu — importante sobretudo
+    # ao clonar uma tag existente pra criar uma nova: o usuário precisa saber
+    # se esqueceu de trocar o nome, o endereço, ou os dois.
+    if db.query(models.Tag).filter(
+        models.Tag.plc_id == data["plc_id"], models.Tag.name == data["name"]
+    ).first():
+        raise HTTPException(409, "Já existe uma tag com esse nome nesse CLP — ajuste o nome antes de salvar.")
+    if db.query(models.Tag).filter(
+        models.Tag.plc_id == data["plc_id"], models.Tag.address == data["address"]
+    ).first():
+        raise HTTPException(409, "Já existe uma tag com esse endereço nesse CLP — ajuste o endereço antes de salvar.")
+
     tag = models.Tag(**data)
     db.add(tag)
     try:
         db.commit()
     except IntegrityError:
+        # Corrida rara (duas criações concorrentes com os mesmos dados) —
+        # a checagem acima cobre o caso comum, isto aqui é só a rede de segurança.
         db.rollback()
-        raise HTTPException(409, "Já existe uma tag com esse nome nesse CLP")
+        raise HTTPException(409, "Já existe uma tag igual a essa (nome ou endereço) nesse CLP.")
     db.refresh(tag)
     tag = _attach_trigger_names([tag], db)[0]
     tag.status = "desconhecido"  # tag recém-criada, ainda sem heartbeat
@@ -246,9 +261,25 @@ def update_tag(tag_id: int, payload: schemas.TagUpdate, db: Session = Depends(ge
     merged.update(updates)
     _validate_logging_rule(merged, db)
 
+    new_name = updates.get("name", tag.name)
+    new_address = updates.get("address", tag.address)
+    if ("name" in updates or "address" in updates):
+        if db.query(models.Tag).filter(
+            models.Tag.plc_id == tag.plc_id, models.Tag.name == new_name, models.Tag.id != tag_id
+        ).first():
+            raise HTTPException(409, "Já existe uma tag com esse nome nesse CLP — ajuste o nome antes de salvar.")
+        if db.query(models.Tag).filter(
+            models.Tag.plc_id == tag.plc_id, models.Tag.address == new_address, models.Tag.id != tag_id
+        ).first():
+            raise HTTPException(409, "Já existe uma tag com esse endereço nesse CLP — ajuste o endereço antes de salvar.")
+
     for field, value in updates.items():
         setattr(tag, field, value)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Já existe uma tag igual a essa (nome ou endereço) nesse CLP.")
     db.refresh(tag)
     tag = _attach_trigger_names([tag], db)[0]
     return _attach_tag_status([tag], db)[0]

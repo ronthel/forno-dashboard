@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/historian/AppShell";
 import { TagDialog } from "@/components/historian/TagDialog";
@@ -67,6 +67,7 @@ function TagsPage() {
   const canEditOrToggle = hasRole("operator");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Tag | null>(null);
+  const [cloneSource, setCloneSource] = useState<Tag | null>(null);
   const [queryInput, setQueryInput] = useState("");
   const query = useDebounced(queryInput, 300);
   const [plcFilter, setPlcFilter] = useState("all");
@@ -99,6 +100,7 @@ function TagsPage() {
           <Button
             onClick={() => {
               setEditing(null);
+              setCloneSource(null);
               setOpen(true);
             }}
           >
@@ -241,10 +243,26 @@ function TagsPage() {
                       aria-label="Editar"
                       onClick={() => {
                         setEditing(t);
+                        setCloneSource(null);
                         setOpen(true);
                       }}
                     >
                       <Pencil className="size-4" />
+                    </Button>
+                  )}
+                  {canCreateOrDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Clonar"
+                      title="Clonar — cria uma tag nova a partir desta"
+                      onClick={() => {
+                        setEditing(null);
+                        setCloneSource(t);
+                        setOpen(true);
+                      }}
+                    >
+                      <Copy className="size-4" />
                     </Button>
                   )}
                   {canCreateOrDelete && (
@@ -325,6 +343,7 @@ function TagsPage() {
         open={open}
         onOpenChange={setOpen}
         tag={editing}
+        cloneFrom={cloneSource}
         {...(plcFilter !== "all" ? { defaultPlcId: plcFilter } : {})}
         {...(!editing ? { defaultTrigger: area === "trigger" ? "never" : "on_change" } : {})}
       />

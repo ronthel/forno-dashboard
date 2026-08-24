@@ -66,12 +66,18 @@ export function TagDialog({
   open,
   onOpenChange,
   tag,
+  cloneFrom,
   defaultPlcId,
   defaultTrigger,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   tag: Tag | null;
+  /** Quando informada (e `tag` é null), pré-preenche o formulário com os
+   * valores desta tag pra criar uma nova a partir dela — nome e endereço
+   * vêm com um sinalizador de que precisam ser ajustados, já que o backend
+   * rejeita nome ou endereço repetidos no mesmo CLP. */
+  cloneFrom?: Tag | null;
   defaultPlcId?: string;
   defaultTrigger?: TriggerMode;
 }) {
@@ -100,9 +106,20 @@ export function TagDialog({
   }, [browseSearchInput]);
 
   useEffect(() => {
-    if (open)
-      setForm(tag ? { ...tag } : emptyTag(defaultPlcId ?? plcs[0]?.id ?? "", defaultTrigger));
-  }, [open, tag, defaultPlcId, defaultTrigger, plcs]);
+    if (!open) return;
+    if (tag) {
+      setForm({ ...tag });
+    } else if (cloneFrom) {
+      // Clona todos os campos, MENOS o id (isto vira uma tag nova, via
+      // POST) — nome e endereço saem marcados como "(cópia)" pra deixar
+      // óbvio que precisam mudar antes de salvar; o backend rejeita os dois
+      // repetidos no mesmo CLP.
+      const { id: _sourceId, ...rest } = cloneFrom;
+      setForm({ ...rest, name: `${cloneFrom.name} (cópia)`, address: `${cloneFrom.address} (ajustar)` });
+    } else {
+      setForm(emptyTag(defaultPlcId ?? plcs[0]?.id ?? "", defaultTrigger));
+    }
+  }, [open, tag, cloneFrom, defaultPlcId, defaultTrigger, plcs]);
 
   // Candidatos a tag de gatilho: busca no servidor, escopada ao CLP e tipo
   // BOOL — com milhares de tags cadastradas, carregar tudo pra filtrar no
@@ -163,9 +180,11 @@ export function TagDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{tag ? "Editar tag" : "Nova tag"}</DialogTitle>
+          <DialogTitle>{tag ? "Editar tag" : cloneFrom ? "Clonar tag" : "Nova tag"}</DialogTitle>
           <DialogDescription>
-            A regra de filtragem decide o que vai para o banco — só o que passa é gravado.
+            {cloneFrom
+              ? `Criando uma tag nova a partir de "${cloneFrom.name}". Ajuste o nome e o endereço — o Historian não deixa salvar com nome ou endereço iguais aos de outra tag do mesmo CLP.`
+              : "A regra de filtragem decide o que vai para o banco — só o que passa é gravado."}
           </DialogDescription>
         </DialogHeader>
 
