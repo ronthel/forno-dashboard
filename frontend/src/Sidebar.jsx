@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Gauge, Settings, Sliders, Users, ScrollText, Bell, User, LogOut } from 'lucide-react';
+import { Home, Gauge, Settings, Sliders, Users, ScrollText, Bell, User, LogOut, Clock } from 'lucide-react';
 
 // Ordem e posição fixas de propósito — os botões nunca somem nem trocam de
 // lugar conforme a tela muda (só a permissão do usuário decide se aparecem
@@ -8,6 +8,7 @@ import { Home, Gauge, Settings, Sliders, Users, ScrollText, Bell, User, LogOut }
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard', icon: Home },
   { key: 'oee', label: 'Relatório OEE', icon: Gauge },
+  { key: 'paradas', label: 'Paradas', icon: Clock },
   { key: 'configTurnos', label: 'Turnos', icon: Settings, requires: 'canConfig' },
   { key: 'configSensores', label: 'Variáveis', icon: Sliders, requires: 'canConfig' },
   { key: 'userManagement', label: 'Usuários', icon: Users, requires: 'canManageUsers' },
@@ -24,6 +25,7 @@ export default function Sidebar({
   canManageUsers,
   canViewAudit,
   unacknowledgedAlarmsCount = 0,
+  pendingParadasCount = 0,
   currentUser,
   onOpenUserModal,
   onLogout,
@@ -42,18 +44,22 @@ export default function Sidebar({
 
         const isActive = currentView === key;
         const isAlarmAlert = key === 'alarms' && !isActive && unacknowledgedAlarmsCount > 0;
+        const isParadaAlert = key === 'paradas' && !isActive && pendingParadasCount > 0;
 
         const className = isActive
           ? 'flex items-center gap-2 bg-amber-600 text-white border border-amber-500 px-3 py-2 rounded text-xs font-semibold shadow-md'
           : isAlarmAlert
           ? 'flex items-center gap-2 bg-red-600 text-white border border-red-500 animate-pulse px-3 py-2 rounded text-xs font-semibold transition'
+          : isParadaAlert
+          ? 'flex items-center gap-2 bg-amber-700/80 text-white border border-amber-600 px-3 py-2 rounded text-xs font-semibold transition'
           : 'flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded text-xs font-semibold transition';
 
         return (
           <button key={key} onClick={() => onNavigate(key)} className={className}>
-            <Icon size={15} className={isActive || isAlarmAlert ? '' : 'text-amber-400'} />
+            <Icon size={15} className={isActive || isAlarmAlert || isParadaAlert ? '' : 'text-amber-400'} />
             {label}
             {key === 'alarms' && unacknowledgedAlarmsCount > 0 && ` (${unacknowledgedAlarmsCount})`}
+            {key === 'paradas' && pendingParadasCount > 0 && ` (${pendingParadasCount})`}
           </button>
         );
       })}

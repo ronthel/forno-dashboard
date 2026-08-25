@@ -159,6 +159,61 @@ async function initPostgres() {
         CONSTRAINT oee_config_single_row CHECK (id = 1)
       );
 
+      -- Catálogo de motivos de parada — cada um já marcado como programada
+      -- (limpeza, setup, manutenção preventiva...) ou não programada (quebra,
+      -- falta de material...). Isso decide se o tempo entra no desconto do
+      -- "Tempo Planejado" da Disponibilidade ou não.
+      CREATE TABLE IF NOT EXISTS motivos_parada (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(100) NOT NULL UNIQUE,
+        tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('programada','nao_programada')),
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Eventos de parada — abertos/fechados automaticamente por um processo
+      -- que observa a tag "Máquina Rodando" (ver detectorDeParadas), e depois
+      -- classificados por um operador (motivo + justificativa). Sem turno_key
+      -- de propósito: qual turno cada parada pertence é decidido na hora da
+      -- consulta, comparando iniciado_em com a janela do turno — assim, se a
+      -- escala de turnos mudar depois, o histórico de paradas não fica órfão.
+      CREATE TABLE IF NOT EXISTS paradas (
+        id SERIAL PRIMARY KEY,
+        iniciado_em TIMESTAMPTZ NOT NULL,
+        finalizado_em TIMESTAMPTZ,
+        motivo_id INTEGER REFERENCES motivos_parada(id),
+        justificativa TEXT,
+        classificado_por_id INTEGER,
+        classificado_por_username VARCHAR(50),
+        classificado_em TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_paradas_iniciado_em ON paradas(iniciado_em);
+      CREATE INDEX IF NOT EXISTS idx_paradas_finalizado_em ON paradas(finalizado_em);
+
+      -- Estado do detector automático de paradas (linha única) — até onde do
+      -- histórico da tag "Máquina Rodando" já foi processado, e qual era o
+      -- último valor conhecido (pra saber se a próxima leitura é uma
+      -- transição de verdade ou só repetição do mesmo estado).
+      CREATE TABLE IF NOT EXISTS parada_detector_state (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        ultimo_processado_em TIMESTAMPTZ,
+        ultimo_valor_conhecido BOOLEAN,
+        CONSTRAINT parada_detector_single_row CHECK (id = 1)
+      );
+
+      INSERT INTO motivos_parada (nome, tipo) VALUES
+        ('Limpeza', 'programada'),
+        ('Setup / Troca de Produto', 'programada'),
+        ('Manutenção Preventiva', 'programada'),
+        ('Troca de Turno', 'programada'),
+        ('Falta de Material', 'nao_programada'),
+        ('Quebra / Manutenção Corretiva', 'nao_programada'),
+        ('Falta de Operador', 'nao_programada'),
+        ('Ajuste de Qualidade', 'nao_programada'),
+        ('Outros', 'nao_programada')
+      ON CONFLICT (nome) DO NOTHING;
+
       CREATE TABLE IF NOT EXISTS sensores_config (
         field_name VARCHAR(100) PRIMARY KEY,
         descricao VARCHAR(200),
@@ -1013,6 +1068,18 @@ async function influxLatestValue(tagName) {
   return null;
 }
 
+// Igual a influxLatestValue, mas pra tags BOOL — essas gravam em value_bool,
+// não em value_num (que fica sempre vazio pra elas). Usada pra "Máquina
+// Rodando" e pelo detector automático de paradas.
+async function influxLatestBoolValue(tagName) {
+  if (!tagName) return null;
+  const reader = await influxDB.query(
+    `SELECT value_bool FROM "tag_events" WHERE tag_name = '${tagName}' ORDER BY time DESC LIMIT 1`
+  );
+  for await (const row of reader) return row.value_bool;
+  return null;
+}
+
 // Busca o valor de uma tag na hora, ou um pouco antes, de um timestamp
 // específico — usada pra pegar o valor de um contador cumulativo no
 // início/fim de um turno (não só "agora"), inclusive turnos já terminados
@@ -1114,7 +1181,7 @@ async function calcularMetricasTurno(cfg, ocorrencia, zeradoEm) {
     influxBaseline(cfg.field_contagem_total, startISO),
     valorNoFim(cfg.field_contagem_refugo),
     influxBaseline(cfg.field_contagem_refugo, startISO),
-    ocorrencia.isAtual ? influxLatestValue(cfg.field_maquina_rodando) : Promise.resolve(null)
+    ocorrencia.isAtual ? influxLatestBoolValue(cfg.field_maquina_rodando) : Promise.resolve(null)
   ]);
 
   const delta = (fim, inicio) => Math.max(0, Number(fim || 0) - Number(inicio ?? 0));
@@ -1141,12 +1208,37 @@ async function calcularMetricasTurno(cfg, ocorrencia, zeradoEm) {
     }
   }
 
+  // Tempo Planejado (denominador da Disponibilidade) desconta as paradas
+  // PROGRAMADAS (limpeza, setup, manutenção preventiva...) que caíram dentro
+  // da janela do turno inteiro — igual à definição padrão de OEE ("Planned
+  // Production Time = Shift Length − Breaks", ver oee.com). Paradas NÃO
+  // programadas não entram aqui: elas já reduzem o Tempo Rodando sozinhas.
+  const paradasSeg = await paradasProgramadasSeg(ocorrencia.start, ocorrencia.end);
+  const plannedSegAjustado = Math.max(0, ocorrencia.plannedSeg - paradasSeg);
+
   return {
-    isAtual: ocorrencia.isAtual, plannedSeg: ocorrencia.plannedSeg,
+    isAtual: ocorrencia.isAtual, plannedSeg: plannedSegAjustado,
     runTimeSec, totalCount, refugoCount, goodCount,
     maquinaRodando: maquinaRodando === null ? null : !!maquinaRodando,
     velocidadeInstantaneaPpm
   };
+}
+
+// Soma a duração (em segundos) das paradas PROGRAMADAS que se sobrepõem à
+// janela [inicio, fim] — parcialmente, se a parada começou antes ou terminou
+// depois da janela, conta só a parte que cai dentro dela.
+async function paradasProgramadasSeg(inicio, fim) {
+  const result = await db.query(
+    `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(p.finalizado_em, $2::timestamptz) - GREATEST(p.iniciado_em, $1::timestamptz)))), 0) AS total_seg
+     FROM paradas p
+     JOIN motivos_parada m ON m.id = p.motivo_id
+     WHERE m.tipo = 'programada'
+       AND p.finalizado_em IS NOT NULL
+       AND p.iniciado_em < $2::timestamptz
+       AND p.finalizado_em > $1::timestamptz`,
+    [inicio.toISOString(), fim.toISOString()]
+  );
+  return Number(result.rows[0]?.total_seg) || 0;
 }
 
 // Devolve as métricas dos 3 turnos configurados (turnos_config — tela de
@@ -1206,6 +1298,171 @@ app.post('/api/oee/reset', requireRole(['supervisor', 'administrador']), async (
   } catch (err) {
     console.error('Erro ao zerar OEE:', err);
     res.status(500).json({ error: 'Erro ao zerar contadores do OEE' });
+  }
+});
+
+// --- DETECTOR AUTOMÁTICO DE PARADAS ---
+// Observa o histórico da tag "Máquina Rodando" (mapeada em Configurar → OEE)
+// e cria/fecha eventos em `paradas` sozinho, sem depender de ninguém com a
+// tela aberta: toda transição rodando→parado abre uma parada; toda
+// parado→rodando fecha a mais recente ainda aberta. Roda em intervalo fixo,
+// independente de requisição HTTP nenhuma.
+async function detectarParadas() {
+  try {
+    const cfgRes = await db.query('SELECT field_maquina_rodando FROM oee_config WHERE id = 1');
+    const fieldMaquinaRodando = cfgRes.rows[0]?.field_maquina_rodando;
+    if (!fieldMaquinaRodando) return; // nada mapeado ainda, nada a observar
+
+    const stateRes = await db.query('SELECT * FROM parada_detector_state WHERE id = 1');
+    let ultimoProcessado = stateRes.rows[0]?.ultimo_processado_em || null;
+    let ultimoValor = stateRes.rows[0]?.ultimo_valor_conhecido;
+    if (ultimoValor === undefined) ultimoValor = null;
+
+    // Primeira vez rodando: não varre o histórico todo, só as últimas 24h —
+    // evita recriar dias de paradas antigas na estreia do detector.
+    const desdeISO = ultimoProcessado
+      ? new Date(ultimoProcessado).toISOString()
+      : new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+
+    const reader = await influxDB.query(
+      `SELECT time, value_bool FROM "tag_events" WHERE tag_name = '${fieldMaquinaRodando}' AND time > '${desdeISO}' ORDER BY time ASC`
+    );
+    const leituras = [];
+    for await (const row of reader) leituras.push({ time: new Date(Number(row.time)), valor: !!row.value_bool });
+    if (leituras.length === 0) return;
+
+    for (const leitura of leituras) {
+      if (ultimoValor === null) {
+        // primeira leitura conhecida de todas — só define a base, não conta
+        // como transição (não sabemos o que veio antes dela).
+        ultimoValor = leitura.valor;
+        continue;
+      }
+      if (leitura.valor === ultimoValor) continue; // sem mudança de estado
+
+      if (ultimoValor === true && leitura.valor === false) {
+        await db.query('INSERT INTO paradas (iniciado_em) VALUES ($1)', [leitura.time]);
+      } else if (ultimoValor === false && leitura.valor === true) {
+        await db.query(
+          `UPDATE paradas SET finalizado_em = $1
+           WHERE id = (SELECT id FROM paradas WHERE finalizado_em IS NULL ORDER BY iniciado_em DESC LIMIT 1)`,
+          [leitura.time]
+        );
+      }
+      ultimoValor = leitura.valor;
+    }
+
+    const ultimaLeitura = leituras[leituras.length - 1];
+    await db.query(
+      `INSERT INTO parada_detector_state (id, ultimo_processado_em, ultimo_valor_conhecido)
+       VALUES (1, $1, $2)
+       ON CONFLICT (id) DO UPDATE SET ultimo_processado_em = EXCLUDED.ultimo_processado_em, ultimo_valor_conhecido = EXCLUDED.ultimo_valor_conhecido`,
+      [ultimaLeitura.time, ultimoValor]
+    );
+  } catch (err) {
+    console.error('[Erro detector de paradas]:', err.message);
+  }
+}
+setInterval(detectarParadas, 15000);
+detectarParadas();
+
+// --- ROTAS DE MOTIVOS DE PARADA (catálogo) ---
+app.get('/api/paradas/motivos', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM motivos_parada ORDER BY tipo, nome');
+    res.json(result.rows.map((r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, ativo: r.ativo })));
+  } catch (err) {
+    console.error('Erro ao listar motivos de parada:', err);
+    res.status(500).json({ error: 'Erro ao listar motivos de parada' });
+  }
+});
+
+app.post('/api/paradas/motivos', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const { nome, tipo } = req.body;
+  if (!nome?.trim()) return res.status(400).json({ error: 'Informe o nome do motivo.' });
+  if (!['programada', 'nao_programada'].includes(tipo)) return res.status(400).json({ error: 'Tipo inválido.' });
+  try {
+    const result = await db.query(
+      'INSERT INTO motivos_parada (nome, tipo) VALUES ($1, $2) RETURNING id, nome, tipo, ativo',
+      [nome.trim(), tipo]
+    );
+    logAudit({ userId: req.user.id, username: req.user.username, role: req.user.role, action: 'criou motivo de parada', details: { nome, tipo } });
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Já existe um motivo com esse nome.' });
+    console.error('Erro ao criar motivo de parada:', err);
+    res.status(500).json({ error: 'Erro ao criar motivo de parada' });
+  }
+});
+
+app.put('/api/paradas/motivos/:id', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const { nome, tipo, ativo } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE motivos_parada SET
+         nome = COALESCE($1, nome),
+         tipo = COALESCE($2, tipo),
+         ativo = COALESCE($3, ativo)
+       WHERE id = $4 RETURNING id, nome, tipo, ativo`,
+      [nome?.trim() || null, tipo || null, typeof ativo === 'boolean' ? ativo : null, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Motivo não encontrado.' });
+    logAudit({ userId: req.user.id, username: req.user.username, role: req.user.role, action: 'editou motivo de parada', details: { id: req.params.id, nome, tipo, ativo } });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Erro ao editar motivo de parada:', err);
+    res.status(500).json({ error: 'Erro ao editar motivo de parada' });
+  }
+});
+
+// --- ROTAS DE PARADAS (eventos) ---
+// status: 'pendentes' (finalizadas mas sem motivo — precisam de ação do
+// operador), 'abertas' (a máquina ainda está parada agora), ou omitido
+// (histórico geral, mais recentes primeiro).
+app.get('/api/paradas', async (req, res) => {
+  const { status, limit } = req.query;
+  const lim = Math.min(200, Number(limit) || 50);
+  try {
+    let where = '';
+    if (status === 'pendentes') where = 'WHERE p.finalizado_em IS NOT NULL AND p.motivo_id IS NULL';
+    else if (status === 'abertas') where = 'WHERE p.finalizado_em IS NULL';
+
+    const result = await db.query(
+      `SELECT p.id, p.iniciado_em, p.finalizado_em, p.motivo_id, m.nome AS motivo_nome, m.tipo AS motivo_tipo,
+              p.justificativa, p.classificado_por_username, p.classificado_em
+       FROM paradas p
+       LEFT JOIN motivos_parada m ON m.id = p.motivo_id
+       ${where}
+       ORDER BY p.iniciado_em DESC
+       LIMIT $1`,
+      [lim]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao listar paradas:', err);
+    res.status(500).json({ error: 'Erro ao listar paradas' });
+  }
+});
+
+// Classificar (ou reclassificar) uma parada: motivo + justificativa. Aberta
+// pra qualquer papel operacional — é o operador que normalmente faz isso.
+app.put('/api/paradas/:id/classificar', requireRole(['operador', 'supervisor', 'administrador']), async (req, res) => {
+  const { motivoId, justificativa } = req.body;
+  if (!motivoId) return res.status(400).json({ error: 'Selecione um motivo.' });
+  try {
+    const result = await db.query(
+      `UPDATE paradas SET
+         motivo_id = $1, justificativa = $2,
+         classificado_por_id = $3, classificado_por_username = $4, classificado_em = CURRENT_TIMESTAMP
+       WHERE id = $5 RETURNING id`,
+      [motivoId, justificativa || null, req.user.id, req.user.username, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Parada não encontrada.' });
+    logAudit({ userId: req.user.id, username: req.user.username, role: req.user.role, action: 'classificou parada', details: { id: req.params.id, motivoId, justificativa } });
+    res.json({ message: 'Parada classificada!' });
+  } catch (err) {
+    console.error('Erro ao classificar parada:', err);
+    res.status(500).json({ error: 'Erro ao classificar parada' });
   }
 });
 

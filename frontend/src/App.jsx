@@ -5,6 +5,7 @@ import ChartCard from './ChartCard';
 import Login from './Login';
 import UserSwitchModal from './UserSwitchModal';
 import AlarmsView from './AlarmsView';
+import ParadasView from './ParadasView';
 import OeeView from './OeeView';
 import ConfigView from './ConfigView';
 import SensorConfigView from './SensorConfigView';
@@ -118,6 +119,27 @@ export default function App() {
     const interval = setInterval(fetchActiveAlarms, 10000);
     return () => clearInterval(interval);
   }, [fetchActiveAlarms]);
+
+  // Contagem de paradas detectadas automaticamente que ainda não foram
+  // classificadas por ninguém — badge no menu, mesmo padrão dos alarmes.
+  const [pendingParadasCount, setPendingParadasCount] = useState(0);
+
+  const fetchPendingParadasCount = useCallback(async () => {
+    try {
+      const res = await api.get('/api/paradas', { params: { status: 'pendentes' } });
+      if (isOk(res) && Array.isArray(res.data)) {
+        setPendingParadasCount(res.data.length);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar paradas pendentes:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingParadasCount();
+    const interval = setInterval(fetchPendingParadasCount, 15000);
+    return () => clearInterval(interval);
+  }, [fetchPendingParadasCount]);
 
   // Mantém a lista de variáveis desta aba já aberta sincronizada com a
   // tela de Configuração de Variáveis, sem precisar recarregar a página:
@@ -469,10 +491,30 @@ export default function App() {
     canManageUsers,
     canViewAudit,
     unacknowledgedAlarmsCount,
+    pendingParadasCount,
     currentUser,
     onOpenUserModal: () => setIsUserModalOpen(true),
     onLogout: handleLogout,
   };
+
+  if (currentView === 'paradas') {
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <ParadasView onBack={() => setCurrentView('dashboard')} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
+  }
 
   if (currentView === 'oee') {
     return (
