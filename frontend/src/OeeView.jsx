@@ -11,6 +11,16 @@ const ZERO_TURNO = {
   maquinaRodando: null, velocidadeInstantaneaPpm: null
 };
 
+// Mesma fórmula usada pro turno atual (ver mais abaixo), aplicada a um ponto
+// do histórico — mantém os dois cálculos sempre iguais, um só lugar de verdade.
+function calcularOeePonto(ponto, velocidadeNominalPpm) {
+  const availability = ponto.plannedSeg > 0 ? Math.min(100, (ponto.runTimeSec / ponto.plannedSeg) * 100) : 0;
+  const velocidadeReaMediaPpm = ponto.runTimeSec > 0 ? (ponto.totalCount / (ponto.runTimeSec / 60)) : 0;
+  const performance = velocidadeNominalPpm > 0 ? Math.min(100, (velocidadeReaMediaPpm / velocidadeNominalPpm) * 100) : 0;
+  const quality = ponto.totalCount > 0 ? Math.min(100, (ponto.goodCount / ponto.totalCount) * 100) : 100;
+  return Number(((availability * performance * quality) / 10000).toFixed(1));
+}
+
 export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, onRefreshOee, refreshInterval, onRefreshIntervalChange }) {
   const [historyData, setHistoryData] = useState([]);
   const [selectedTurno, setSelectedTurno] = useState('turnoB');
@@ -69,19 +79,23 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, onRe
     return '#22c55e';
   };
 
-  // Gráfico de tendência: ainda é uma simulação em cima do OEE atual do
-  // turno selecionado (não é histórico real ponto a ponto ainda).
+  // Gráfico de tendência real: as últimas ocorrências do turno selecionado
+  // (normalmente uma por dia), calculadas com os mesmos dados brutos e a
+  // mesma fórmula do turno atual — não é mais simulado.
   useEffect(() => {
-    const mock = [];
-    const now = new Date();
-    for (let i = 15; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 30 * 60000);
-      const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const variation = Math.max(30, Math.min(100, currentMetrics.oee + (Math.sin(i) * 6)));
-      mock.push({ time: timeStr, oee: Number(variation.toFixed(1)) });
-    }
-    setHistoryData(mock);
-  }, [currentMetrics.oee]);
+    let cancelado = false;
+    api.get('/api/oee/historico', { params: { turnoKey: selectedTurno, quantidade: 14 } })
+      .then((res) => {
+        if (cancelado || !isOk(res)) return;
+        const pontos = (res.data?.pontos || []).map((p) => ({
+          time: p.label,
+          oee: calcularOeePonto(p, res.data.velocidadeNominalPpm || velocidadeNominalPpm)
+        }));
+        setHistoryData(pontos);
+      })
+      .catch((err) => console.error('Erro ao buscar histórico do OEE:', err));
+    return () => { cancelado = true; };
+  }, [selectedTurno, velocidadeNominalPpm]);
 
   const ultimaMedia = historyData.length > 0 ? historyData[historyData.length - 1].oee : currentMetrics.oee;
   const estaNaMeta = ultimaMedia >= metaAtual;

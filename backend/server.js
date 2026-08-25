@@ -1124,28 +1124,50 @@ const hhmmToMinutes = (hhmm) => {
 // recente que já começou — pode ser a de HOJE ou a de ONTEM (cobre turnos
 // que atravessam a meia-noite, e turnos que ainda não começaram hoje, que
 // usam a última ocorrência real, a de ontem, em vez de aparecer vazio).
-function calcularOcorrencia(row, now) {
+// Janela de UM turno num dia específico (diaOffset: 0 = hoje, -1 = ontem,
+// -2 = anteontem...) — não olha se já começou ou não, só calcula onde cairia.
+function ocorrenciaNoDia(row, now, diaOffset) {
   const inicioMin = hhmmToMinutes(row.hora_inicio);
   const fimMin = hhmmToMinutes(row.hora_fim);
   const duracaoMin = fimMin > inicioMin ? (fimMin - inicioMin) : (1440 - inicioMin + fimMin);
+  const inicioDia = new Date(now);
+  inicioDia.setHours(0, 0, 0, 0);
+  inicioDia.setDate(inicioDia.getDate() + diaOffset);
+  const start = new Date(inicioDia.getTime() + inicioMin * 60000);
+  const end = new Date(start.getTime() + duracaoMin * 60000);
+  return { start, end, plannedSeg: duracaoMin * 60 };
+}
 
+function calcularOcorrencia(row, now) {
   const candidatos = [0, -1]
-    .map((diaOffset) => {
-      const inicioDia = new Date(now);
-      inicioDia.setHours(0, 0, 0, 0);
-      inicioDia.setDate(inicioDia.getDate() + diaOffset);
-      const start = new Date(inicioDia.getTime() + inicioMin * 60000);
-      const end = new Date(start.getTime() + duracaoMin * 60000);
-      return { start, end };
-    })
+    .map((diaOffset) => ocorrenciaNoDia(row, now, diaOffset))
     .filter((c) => c.start.getTime() <= now.getTime());
 
   if (candidatos.length === 0) return null;
   candidatos.sort((a, b) => b.start.getTime() - a.start.getTime());
-  const { start, end } = candidatos[0];
+  const { start, end, plannedSeg } = candidatos[0];
   const isAtual = now.getTime() < end.getTime();
 
-  return { start, end: isAtual ? now : end, plannedSeg: duracaoMin * 60, isAtual };
+  return { start, end: isAtual ? now : end, plannedSeg, isAtual };
+}
+
+// As últimas N ocorrências de um turno (mais recente primeiro) — usada pro
+// histórico real de OEE (ver GET /api/oee/historico), andando um dia de
+// cada vez pra trás até juntar a quantidade pedida.
+function ultimasOcorrencias(row, now, quantidade) {
+  const resultados = [];
+  let diaOffset = 0;
+  let tentativas = 0;
+  while (resultados.length < quantidade && tentativas < quantidade + 3) {
+    tentativas += 1;
+    const occ = ocorrenciaNoDia(row, now, diaOffset);
+    if (occ.start.getTime() <= now.getTime()) {
+      const isAtual = now.getTime() < occ.end.getTime();
+      resultados.push({ ...occ, end: isAtual ? now : occ.end, isAtual });
+    }
+    diaOffset -= 1;
+  }
+  return resultados;
 }
 
 // Calcula runTime/contagem/refugo/qualidade pra UM turno específico, já
@@ -1463,6 +1485,119 @@ app.put('/api/paradas/:id/classificar', requireRole(['operador', 'supervisor', '
   } catch (err) {
     console.error('Erro ao classificar parada:', err);
     res.status(500).json({ error: 'Erro ao classificar parada' });
+  }
+});
+
+// Pareto de paradas: tempo total parado por motivo, num período — ranking
+// de "onde focar melhoria" — mais MTBF/MTTR, calculados só sobre as paradas
+// NÃO programadas (falhas de verdade, não limpeza/setup planejados).
+app.get('/api/paradas/pareto', async (req, res) => {
+  const dias = Math.min(365, Math.max(1, Number(req.query.dias) || 30));
+  try {
+    const porMotivo = await db.query(
+      `SELECT m.id AS motivo_id, m.nome, m.tipo,
+              COUNT(*) AS quantidade,
+              COALESCE(SUM(EXTRACT(EPOCH FROM (p.finalizado_em - p.iniciado_em))), 0) AS total_seg
+       FROM paradas p
+       JOIN motivos_parada m ON m.id = p.motivo_id
+       WHERE p.finalizado_em IS NOT NULL
+         AND p.iniciado_em >= now() - ($1 || ' days')::interval
+       GROUP BY m.id, m.nome, m.tipo
+       ORDER BY total_seg DESC`,
+      [dias]
+    );
+
+    // MTTR: duração média das paradas não programadas (tempo médio de reparo).
+    // MTBF: tempo médio decorrido entre o INÍCIO de uma falha não programada
+    // e o início da seguinte (aproximação padrão quando não se mede tempo de
+    // produção real minuto a minuto fora daqui).
+    const naoProgramadas = await db.query(
+      `SELECT p.iniciado_em, p.finalizado_em
+       FROM paradas p
+       JOIN motivos_parada m ON m.id = p.motivo_id
+       WHERE m.tipo = 'nao_programada'
+         AND p.finalizado_em IS NOT NULL
+         AND p.iniciado_em >= now() - ($1 || ' days')::interval
+       ORDER BY p.iniciado_em ASC`,
+      [dias]
+    );
+
+    const falhas = naoProgramadas.rows;
+    let mttrSeg = null, mtbfSeg = null;
+    if (falhas.length > 0) {
+      const totalDuracaoSeg = falhas.reduce((acc, f) => acc + (new Date(f.finalizado_em) - new Date(f.iniciado_em)) / 1000, 0);
+      mttrSeg = totalDuracaoSeg / falhas.length;
+    }
+    if (falhas.length > 1) {
+      let totalEntreFalhasSeg = 0;
+      for (let i = 1; i < falhas.length; i++) {
+        totalEntreFalhasSeg += (new Date(falhas[i].iniciado_em) - new Date(falhas[i - 1].iniciado_em)) / 1000;
+      }
+      mtbfSeg = totalEntreFalhasSeg / (falhas.length - 1);
+    }
+
+    res.json({
+      dias,
+      porMotivo: porMotivo.rows.map((r) => ({
+        motivoId: r.motivo_id, nome: r.nome, tipo: r.tipo,
+        quantidade: Number(r.quantidade), totalSeg: Number(r.total_seg)
+      })),
+      totalFalhas: falhas.length,
+      mttrSeg, mtbfSeg
+    });
+  } catch (err) {
+    console.error('Erro ao calcular pareto de paradas:', err);
+    res.status(500).json({ error: 'Erro ao calcular pareto de paradas' });
+  }
+});
+
+// Histórico REAL do OEE de um turno — as últimas N ocorrências dele
+// (normalmente uma por dia), com os números brutos de cada uma. O cálculo
+// de % (Disponibilidade/Performance/Qualidade/OEE) fica por conta de quem
+// consome, igual já é feito pro turno atual — mesma fórmula, mesma fonte.
+app.get('/api/oee/historico', async (req, res) => {
+  const turnoKey = req.query.turnoKey;
+  const quantidade = Math.min(60, Math.max(1, Number(req.query.quantidade) || 14));
+  if (!turnoKey) return res.status(400).json({ error: 'Informe turnoKey.' });
+  try {
+    const turnoRes = await db.query('SELECT * FROM turnos_config WHERE turno_key = $1', [turnoKey]);
+    if (turnoRes.rows.length === 0) return res.json({ turnoKey, nome: null, velocidadeNominalPpm: 50, pontos: [] });
+    const row = turnoRes.rows[0];
+
+    const cfgRes = await db.query('SELECT * FROM oee_config WHERE id = 1');
+    const cfg = cfgRes.rows[0] || {};
+    const zeradoEm = cfg.zerado_em ? new Date(cfg.zerado_em) : null;
+    const configured = !!(cfg.field_tempo_rodando && cfg.field_contagem_total);
+
+    const velocidadeNominalDoPlc = await influxLatestValue(cfg.field_velocidade_nominal);
+    const velocidadeNominalPpm = velocidadeNominalDoPlc !== null
+      ? Number(velocidadeNominalDoPlc)
+      : (Number(cfg.velocidade_nominal_ppm) || 50);
+
+    const now = new Date();
+    const ocorrencias = ultimasOcorrencias(row, now, quantidade).reverse(); // mais antiga primeiro, pro gráfico
+
+    const pontos = [];
+    for (const occ of ocorrencias) {
+      const metrics = configured
+        ? await calcularMetricasTurno(cfg, occ, zeradoEm)
+        : { runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0 };
+      pontos.push({
+        data: occ.start.toISOString(),
+        label: occ.start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        isAtual: occ.isAtual,
+        plannedSeg: metrics.plannedSeg,
+        runTimeSec: metrics.runTimeSec,
+        totalCount: metrics.totalCount,
+        refugoCount: metrics.refugoCount,
+        goodCount: metrics.goodCount
+      });
+    }
+
+    res.json({ turnoKey, nome: row.nome, velocidadeNominalPpm, pontos });
+  } catch (err) {
+    console.error('Erro ao buscar histórico do OEE:', err);
+    res.status(500).json({ error: 'Erro ao buscar histórico do OEE' });
   }
 });
 

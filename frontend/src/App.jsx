@@ -502,7 +502,7 @@ export default function App() {
       <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
         <Sidebar {...sidebarProps} />
         <div className="flex-1 overflow-hidden">
-          <ParadasView onBack={() => setCurrentView('dashboard')} />
+          <ParadasView onBack={() => setCurrentView('dashboard')} canConfig={canConfig} />
         </div>
         <UserSwitchModal
           isOpen={isUserModalOpen}
