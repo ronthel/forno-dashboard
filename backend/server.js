@@ -125,16 +125,37 @@ async function initPostgres() {
       -- variáveis já cadastradas em sensores_config/InfluxDB — configurável
       -- pela tela, sem precisar mexer em código quando o CLP mudar de tag.
       -- Linha única (id sempre 1, travado pelo CHECK).
+      -- Performance do OEE aqui é medida em pacotes/minuto (contagem de
+      -- pacotes produzidos), não tempo de ciclo — combina melhor com o
+      -- processo real: sai bolacha do forno, empacota, e o sensor conta
+      -- pacote pronto no fim do empacotamento.
       CREATE TABLE IF NOT EXISTS oee_config (
         id INTEGER PRIMARY KEY DEFAULT 1,
         field_tempo_rodando TEXT,
         field_contagem_total TEXT,
         field_contagem_refugo TEXT,
         field_maquina_rodando TEXT,
-        field_tempo_ciclo_real TEXT,
-        tempo_ciclo_ideal_seg NUMERIC NOT NULL DEFAULT 20,
+        field_velocidade_nominal TEXT,
+        -- Velocidade real calculada pelo próprio CLP (pacotes/min) — quando
+        -- mapeada, substitui o cálculo por delta da Contagem Total (que
+        -- ainda é usado como reserva se essa variável não estiver mapeada).
+        field_velocidade_real TEXT,
+        -- Reserva, usada só se field_velocidade_nominal não estiver mapeada
+        -- (ou sem leitura ainda) — permite configurar um número fixo
+        -- enquanto o CLP não tiver essa variável pronta.
+        velocidade_nominal_ppm NUMERIC NOT NULL DEFAULT 50,
         tempo_planejado_seg NUMERIC NOT NULL DEFAULT 28800,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        -- Ponto de partida pro cálculo dos contadores — tudo que o CLP já
+        -- tinha contado ANTES desse instante é ignorado. Existe pra dar um
+        -- "começa do zero agora" de verdade, sem depender de mexer no CLP
+        -- (os contadores lá continuam crescendo pra sempre, de propósito).
+        -- TIMESTAMPTZ de propósito (não TIMESTAMP): o backend roda com
+        -- TZ=America/Sao_Paulo mas o Postgres roda em UTC — sem o fuso
+        -- explícito na coluna, o valor lido de volta no Node vinha
+        -- deslocado 3h, fazendo o sistema achar que o reset ainda não tinha
+        -- acontecido (parecia estar no futuro) e zerava tudo.
+        zerado_em TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT oee_config_single_row CHECK (id = 1)
       );
 
@@ -142,8 +163,12 @@ async function initPostgres() {
         field_name VARCHAR(100) PRIMARY KEY,
         descricao VARCHAR(200),
         unidade VARCHAR(20),
-        min_limit NUMERIC(10,2),
-        max_limit NUMERIC(10,2),
+        -- Sem limite de precisão de propósito: NUMERIC(10,2) (usado antes)
+        -- estourava ("numeric field overflow") em variáveis de contador
+        -- cumulativo (ex: tempo rodando do OEE), onde um limite máximo de
+        -- 1 bilhão+ é normal.
+        min_limit NUMERIC,
+        max_limit NUMERIC,
         cor VARCHAR(20),
         fator_correcao NUMERIC(10,4),
         tipo_alarme VARCHAR(50)
@@ -609,6 +634,12 @@ app.post('/api/config/sensores', requireRole(['supervisor', 'administrador']), a
     res.json({ success: true, message: 'Sensores salvos com sucesso no PostgreSQL!' });
   } catch (err) {
     console.error('Erro ao salvar sensores:', err);
+    if (err.code === '22003') {
+      // "numeric field overflow" do Postgres — mensagem específica em vez do
+      // "Erro interno" genérico, já que isso normalmente é só um limite
+      // mínimo/máximo grande demais digitado por engano.
+      return res.status(400).json({ error: 'Limite mínimo ou máximo grande demais.' });
+    }
     res.status(500).json({ error: 'Erro interno' });
   }
 });
@@ -907,8 +938,8 @@ app.get('/api/config/oee', async (req, res) => {
     if (result.rows.length === 0) {
       return res.json({
         fieldTempoRodando: null, fieldContagemTotal: null, fieldContagemRefugo: null,
-        fieldMaquinaRodando: null, fieldTempoCicloReal: null,
-        tempoCicloIdealSeg: 20, tempoPlanejadoSeg: 28800
+        fieldMaquinaRodando: null, fieldVelocidadeNominal: null, fieldVelocidadeReal: null,
+        velocidadeNominalPpm: 50, tempoPlanejadoSeg: 28800
       });
     }
     const row = result.rows[0];
@@ -917,8 +948,9 @@ app.get('/api/config/oee', async (req, res) => {
       fieldContagemTotal: row.field_contagem_total,
       fieldContagemRefugo: row.field_contagem_refugo,
       fieldMaquinaRodando: row.field_maquina_rodando,
-      fieldTempoCicloReal: row.field_tempo_ciclo_real,
-      tempoCicloIdealSeg: Number(row.tempo_ciclo_ideal_seg),
+      fieldVelocidadeNominal: row.field_velocidade_nominal,
+      fieldVelocidadeReal: row.field_velocidade_real,
+      velocidadeNominalPpm: Number(row.velocidade_nominal_ppm),
       tempoPlanejadoSeg: Number(row.tempo_planejado_seg)
     });
   } catch (err) {
@@ -930,34 +962,35 @@ app.get('/api/config/oee', async (req, res) => {
 app.post('/api/config/oee', requireRole(['supervisor', 'administrador']), async (req, res) => {
   const {
     fieldTempoRodando, fieldContagemTotal, fieldContagemRefugo,
-    fieldMaquinaRodando, fieldTempoCicloReal,
-    tempoCicloIdealSeg, tempoPlanejadoSeg
+    fieldMaquinaRodando, fieldVelocidadeNominal, fieldVelocidadeReal,
+    velocidadeNominalPpm, tempoPlanejadoSeg
   } = req.body;
   try {
     await db.query(
       `INSERT INTO oee_config (id, field_tempo_rodando, field_contagem_total, field_contagem_refugo,
-                                field_maquina_rodando, field_tempo_ciclo_real, tempo_ciclo_ideal_seg, tempo_planejado_seg, updated_at)
-       VALUES (1, $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+                                field_maquina_rodando, field_velocidade_nominal, field_velocidade_real, velocidade_nominal_ppm, tempo_planejado_seg, updated_at)
+       VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
        ON CONFLICT (id) DO UPDATE SET
          field_tempo_rodando = EXCLUDED.field_tempo_rodando,
          field_contagem_total = EXCLUDED.field_contagem_total,
          field_contagem_refugo = EXCLUDED.field_contagem_refugo,
          field_maquina_rodando = EXCLUDED.field_maquina_rodando,
-         field_tempo_ciclo_real = EXCLUDED.field_tempo_ciclo_real,
-         tempo_ciclo_ideal_seg = EXCLUDED.tempo_ciclo_ideal_seg,
+         field_velocidade_nominal = EXCLUDED.field_velocidade_nominal,
+         field_velocidade_real = EXCLUDED.field_velocidade_real,
+         velocidade_nominal_ppm = EXCLUDED.velocidade_nominal_ppm,
          tempo_planejado_seg = EXCLUDED.tempo_planejado_seg,
          updated_at = CURRENT_TIMESTAMP`,
       [
         fieldTempoRodando || null, fieldContagemTotal || null, fieldContagemRefugo || null,
-        fieldMaquinaRodando || null, fieldTempoCicloReal || null,
-        Number(tempoCicloIdealSeg) || 20, Number(tempoPlanejadoSeg) || 28800
+        fieldMaquinaRodando || null, fieldVelocidadeNominal || null, fieldVelocidadeReal || null,
+        Number(velocidadeNominalPpm) || 50, Number(tempoPlanejadoSeg) || 28800
       ]
     );
 
     logAudit({
       userId: req.user.id, username: req.user.username, role: req.user.role,
       action: 'salvou configuração do OEE',
-      details: { fieldTempoRodando, fieldContagemTotal, fieldContagemRefugo, fieldMaquinaRodando, fieldTempoCicloReal, tempoCicloIdealSeg, tempoPlanejadoSeg }
+      details: { fieldTempoRodando, fieldContagemTotal, fieldContagemRefugo, fieldMaquinaRodando, fieldVelocidadeNominal, fieldVelocidadeReal, velocidadeNominalPpm, tempoPlanejadoSeg }
     });
 
     res.json({ message: 'Configuração do OEE salva!' });
@@ -980,93 +1013,199 @@ async function influxLatestValue(tagName) {
   return null;
 }
 
-// Busca a leitura mais próxima de "agora menos X segundos" — usada pra
-// calcular o DELTA de um contador cumulativo dentro de uma janela (ex: nas
-// últimas 8h), já que os contadores do CLP não zeram sozinhos (ver
-// recomendação de projeto do OEE). Se não houver leitura tão antiga ainda
-// (operação recente demais), retorna null — o chamador trata isso como "conta
-// desde o início" (delta = valor atual).
-async function influxValueBefore(tagName, secondsAgo) {
+// Busca o valor de uma tag na hora, ou um pouco antes, de um timestamp
+// específico — usada pra pegar o valor de um contador cumulativo no
+// início/fim de um turno (não só "agora"), inclusive turnos já terminados
+// hoje (cujos números precisam ficar parados no que eram no fim do turno,
+// não continuar mudando com o que está acontecendo agora).
+async function influxValueAtOrBefore(tagName, isoTimestamp) {
   if (!tagName) return null;
   const reader = await influxDB.query(
-    `SELECT value_num FROM "tag_events" WHERE tag_name = '${tagName}' AND time <= NOW() - INTERVAL '${Number(secondsAgo)} seconds' ORDER BY time DESC LIMIT 1`
+    `SELECT value_num FROM "tag_events" WHERE tag_name = '${tagName}' AND time <= '${isoTimestamp}' ORDER BY time DESC LIMIT 1`
   );
   for await (const row of reader) return row.value_num;
   return null;
 }
 
-// Média de uma tag (não-cumulativa, ex: tempo de ciclo real) dentro da
-// janela dos últimos X segundos.
-async function influxAvgValue(tagName, secondsAgo) {
+// Primeira leitura disponível A PARTIR de um timestamp — reserva pra quando
+// não existe NENHUMA leitura antes do início da janela (ex: a tag só
+// começou a ser lida pelo Historian depois que o turno já tinha começado).
+// Sem isso, a primeira leitura vira "delta = valor cheio", contando como se
+// tudo que o CLP já tinha acumulado antes de existirmos tivesse acontecido
+// dentro da janela.
+async function influxFirstValueFrom(tagName, isoTimestamp) {
   if (!tagName) return null;
   const reader = await influxDB.query(
-    `SELECT AVG(value_num) AS avg_val FROM "tag_events" WHERE tag_name = '${tagName}' AND time >= NOW() - INTERVAL '${Number(secondsAgo)} seconds'`
+    `SELECT value_num FROM "tag_events" WHERE tag_name = '${tagName}' AND time >= '${isoTimestamp}' ORDER BY time ASC LIMIT 1`
   );
-  for await (const row of reader) return row.avg_val;
+  for await (const row of reader) return row.value_num;
   return null;
 }
 
+async function influxBaseline(tagName, isoTimestamp) {
+  const before = await influxValueAtOrBefore(tagName, isoTimestamp);
+  if (before !== null) return before;
+  return influxFirstValueFrom(tagName, isoTimestamp);
+}
+
+const hhmmToMinutes = (hhmm) => {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+// Pra um turno configurado (hora_inicio/hora_fim), acha a ocorrência mais
+// recente que já começou — pode ser a de HOJE ou a de ONTEM (cobre turnos
+// que atravessam a meia-noite, e turnos que ainda não começaram hoje, que
+// usam a última ocorrência real, a de ontem, em vez de aparecer vazio).
+function calcularOcorrencia(row, now) {
+  const inicioMin = hhmmToMinutes(row.hora_inicio);
+  const fimMin = hhmmToMinutes(row.hora_fim);
+  const duracaoMin = fimMin > inicioMin ? (fimMin - inicioMin) : (1440 - inicioMin + fimMin);
+
+  const candidatos = [0, -1]
+    .map((diaOffset) => {
+      const inicioDia = new Date(now);
+      inicioDia.setHours(0, 0, 0, 0);
+      inicioDia.setDate(inicioDia.getDate() + diaOffset);
+      const start = new Date(inicioDia.getTime() + inicioMin * 60000);
+      const end = new Date(start.getTime() + duracaoMin * 60000);
+      return { start, end };
+    })
+    .filter((c) => c.start.getTime() <= now.getTime());
+
+  if (candidatos.length === 0) return null;
+  candidatos.sort((a, b) => b.start.getTime() - a.start.getTime());
+  const { start, end } = candidatos[0];
+  const isAtual = now.getTime() < end.getTime();
+
+  return { start, end: isAtual ? now : end, plannedSeg: duracaoMin * 60, isAtual };
+}
+
+// Calcula runTime/contagem/refugo/qualidade pra UM turno específico, já
+// considerando o "zerado_em" (ver POST /api/oee/reset): o início efetivo da
+// janela nunca é anterior a esse ponto de partida. Se o turno inteiro já
+// tinha terminado antes do reset, devolve tudo zerado (esse turno "ainda não
+// aconteceu" desde que zeramos).
+async function calcularMetricasTurno(cfg, ocorrencia, zeradoEm) {
+  const zeroBase = {
+    isAtual: ocorrencia?.isAtual || false, plannedSeg: ocorrencia?.plannedSeg || 0,
+    runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
+    maquinaRodando: null, velocidadeInstantaneaPpm: null
+  };
+  if (!ocorrencia) return zeroBase;
+
+  let effectiveStart = ocorrencia.start;
+  if (zeradoEm && zeradoEm.getTime() > effectiveStart.getTime()) effectiveStart = zeradoEm;
+  if (effectiveStart.getTime() >= ocorrencia.end.getTime()) return zeroBase;
+
+  const startISO = effectiveStart.toISOString();
+  const endISO = ocorrencia.end.toISOString();
+  const valorNoFim = (tag) => (ocorrencia.isAtual ? influxLatestValue(tag) : influxValueAtOrBefore(tag, endISO));
+
+  const [
+    tempoRodandoFim, tempoRodandoInicio,
+    totalFim, totalInicio,
+    refugoFim, refugoInicio,
+    maquinaRodando
+  ] = await Promise.all([
+    valorNoFim(cfg.field_tempo_rodando),
+    influxBaseline(cfg.field_tempo_rodando, startISO),
+    valorNoFim(cfg.field_contagem_total),
+    influxBaseline(cfg.field_contagem_total, startISO),
+    valorNoFim(cfg.field_contagem_refugo),
+    influxBaseline(cfg.field_contagem_refugo, startISO),
+    ocorrencia.isAtual ? influxLatestValue(cfg.field_maquina_rodando) : Promise.resolve(null)
+  ]);
+
+  const delta = (fim, inicio) => Math.max(0, Number(fim || 0) - Number(inicio ?? 0));
+
+  const runTimeSec = delta(tempoRodandoFim, tempoRodandoInicio);
+  const totalCount = delta(totalFim, totalInicio);
+  const refugoCount = delta(refugoFim, refugoInicio);
+  const goodCount = Math.max(0, totalCount - refugoCount);
+
+  // Velocidade instantânea só faz sentido pro turno que está rodando agora
+  // — os outros são fotografias de um período que já passou. Preferência:
+  // se o CLP já calcula e fornece a velocidade real (field_velocidade_real),
+  // usa ela direto — mais precisa que estimar por delta da Contagem Total
+  // (que só serve de reserva enquanto essa variável não estiver mapeada).
+  let velocidadeInstantaneaPpm = null;
+  if (ocorrencia.isAtual) {
+    if (cfg.field_velocidade_real) {
+      velocidadeInstantaneaPpm = await influxLatestValue(cfg.field_velocidade_real);
+    }
+    if (velocidadeInstantaneaPpm === null) {
+      const umMinutoAtrasISO = new Date(Date.now() - 60000).toISOString();
+      const totalUmMinAtras = await influxValueAtOrBefore(cfg.field_contagem_total, umMinutoAtrasISO);
+      velocidadeInstantaneaPpm = totalUmMinAtras === null ? null : delta(totalFim, totalUmMinAtras);
+    }
+  }
+
+  return {
+    isAtual: ocorrencia.isAtual, plannedSeg: ocorrencia.plannedSeg,
+    runTimeSec, totalCount, refugoCount, goodCount,
+    maquinaRodando: maquinaRodando === null ? null : !!maquinaRodando,
+    velocidadeInstantaneaPpm
+  };
+}
+
+// Devolve as métricas dos 3 turnos configurados (turnos_config — tela de
+// Configurar) de uma vez, cada um com sua própria ocorrência mais recente
+// (hoje ou ontem) — não é mais só "o turno de agora".
 app.get('/api/oee/metrics', async (req, res) => {
   try {
     const cfgRes = await db.query('SELECT * FROM oee_config WHERE id = 1');
     const cfg = cfgRes.rows[0] || {};
-    const tempoPlanejadoSeg = Number(cfg.tempo_planejado_seg) || 28800;
-    const tempoCicloIdealSeg = Number(cfg.tempo_ciclo_ideal_seg) || 20;
-
+    // Velocidade nominal preferencialmente vem de uma variável do CLP
+    // (ajustável na IHM, ex: setpoint de velocidade da linha) — o número
+    // configurado na tela só é usado como reserva se essa tag ainda não
+    // estiver mapeada, ou sem nenhuma leitura ainda.
+    const velocidadeNominalDoPlc = await influxLatestValue(cfg.field_velocidade_nominal);
+    const velocidadeNominalPpm = velocidadeNominalDoPlc !== null
+      ? Number(velocidadeNominalDoPlc)
+      : (Number(cfg.velocidade_nominal_ppm) || 50);
+    const zeradoEm = cfg.zerado_em ? new Date(cfg.zerado_em) : null;
     const configured = !!(cfg.field_tempo_rodando && cfg.field_contagem_total);
-    if (!configured) {
-      // Ainda não foi mapeada nenhuma variável (instalação nova, ou ninguém
-      // configurou ainda) — devolve zerado sem tentar consultar o InfluxDB
-      // com nomes de tag vazios.
-      return res.json({
-        configured: false,
-        runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
-        maquinaRodando: null, tempoCicloRealSeg: null,
-        tempoCicloIdealSeg, tempoPlanejadoSeg
-      });
+
+    const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
+    const now = new Date();
+
+    const turnos = {};
+    for (const row of turnosRes.rows) {
+      const ocorrencia = calcularOcorrencia(row, now);
+      const metrics = configured
+        ? await calcularMetricasTurno(cfg, ocorrencia, zeradoEm)
+        : { isAtual: ocorrencia?.isAtual || false, plannedSeg: ocorrencia?.plannedSeg || 0,
+            runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
+            maquinaRodando: null, velocidadeInstantaneaPpm: null };
+      turnos[row.turno_key] = { nome: row.nome, metaOee: Number(row.meta_oee), ...metrics };
     }
 
-    // Contadores cumulativos: delta entre "agora" e "início da janela"
-    // (tempoPlanejadoSeg atrás) — não a leitura bruta, que só cresce pra
-    // sempre e não representaria "este turno/janela".
-    const [
-      tempoRodandoAgora, tempoRodandoAntes,
-      totalAgora, totalAntes,
-      refugoAgora, refugoAntes,
-      maquinaRodando, tempoCicloRealSeg
-    ] = await Promise.all([
-      influxLatestValue(cfg.field_tempo_rodando),
-      influxValueBefore(cfg.field_tempo_rodando, tempoPlanejadoSeg),
-      influxLatestValue(cfg.field_contagem_total),
-      influxValueBefore(cfg.field_contagem_total, tempoPlanejadoSeg),
-      influxLatestValue(cfg.field_contagem_refugo),
-      influxValueBefore(cfg.field_contagem_refugo, tempoPlanejadoSeg),
-      influxLatestValue(cfg.field_maquina_rodando),
-      influxAvgValue(cfg.field_tempo_ciclo_real, tempoPlanejadoSeg)
-    ]);
-
-    const delta = (agora, antes) => Math.max(0, Number(agora || 0) - Number(antes ?? 0));
-
-    const runTimeSec = delta(tempoRodandoAgora, tempoRodandoAntes);
-    const totalCount = delta(totalAgora, totalAntes);
-    const refugoCount = delta(refugoAgora, refugoAntes);
-    const goodCount = Math.max(0, totalCount - refugoCount);
-
-    res.json({
-      configured: true,
-      runTimeSec, totalCount, refugoCount, goodCount,
-      maquinaRodando: maquinaRodando === null ? null : !!maquinaRodando,
-      tempoCicloRealSeg: tempoCicloRealSeg === null ? null : Number(tempoCicloRealSeg),
-      tempoCicloIdealSeg, tempoPlanejadoSeg
-    });
+    res.json({ configured, velocidadeNominalPpm, turnos, zeradoEm: cfg.zerado_em || null });
   } catch (err) {
     console.error('[Erro OEE Metrics]:', err.message);
-    res.json({
-      configured: false,
-      runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
-      maquinaRodando: null, tempoCicloRealSeg: null,
-      tempoCicloIdealSeg: 20, tempoPlanejadoSeg: 28800
+    res.json({ configured: false, velocidadeNominalPpm: 50, turnos: {}, zeradoEm: null });
+  }
+});
+
+// "Zera" o cálculo do OEE a partir de agora — não mexe nos contadores reais
+// do CLP (esses continuam só crescendo, de propósito), só marca um ponto de
+// partida: nenhuma métrica volta a olhar pra antes desse instante.
+app.post('/api/oee/reset', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  try {
+    await db.query(
+      `INSERT INTO oee_config (id, velocidade_nominal_ppm, tempo_planejado_seg, zerado_em, updated_at)
+       VALUES (1, 50, 28800, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT (id) DO UPDATE SET zerado_em = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`
+    );
+    logAudit({
+      userId: req.user.id, username: req.user.username, role: req.user.role,
+      action: 'zerou os contadores do OEE', details: {}
     });
+    res.json({ message: 'Contadores do OEE zerados a partir de agora!' });
+  } catch (err) {
+    console.error('Erro ao zerar OEE:', err);
+    res.status(500).json({ error: 'Erro ao zerar contadores do OEE' });
   }
 });
 

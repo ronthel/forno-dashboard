@@ -1,47 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Gauge, Home, Activity, CheckCircle, Clock, Database, TrendingUp, TrendingDown, Settings } from 'lucide-react';
+import { Gauge, Activity, CheckCircle, Clock, Database, TrendingUp, TrendingDown, Settings, RotateCcw, RefreshCw } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
+import api, { isOk } from './api';
 
-export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
+const TURNO_KEYS = ['turnoA', 'turnoB', 'turnoC'];
+
+const ZERO_TURNO = {
+  nome: null, metaOee: 80, isAtual: false, plannedSeg: 0,
+  runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
+  maquinaRodando: null, velocidadeInstantaneaPpm: null
+};
+
+export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, onRefreshOee, refreshInterval, onRefreshIntervalChange }) {
   const [historyData, setHistoryData] = useState([]);
-  const [selectedTurno, setSelectedTurno] = useState('atual'); // 'atual' (Turno B), 'turnoA', 'turnoC'
+  const [selectedTurno, setSelectedTurno] = useState('turnoB');
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   const isOeeConfigured = !!oeeData?.configured;
-  const runTimeSec = oeeData?.runTimeSec || 0;
-  const totalCount = oeeData?.totalCount || 0;
-  const refugoCount = oeeData?.refugoCount || 0;
-  const goodCount = oeeData?.goodCount || 0;
-  const tempoCicloRealSeg = oeeData?.tempoCicloRealSeg;
+  const velocidadeNominalPpm = oeeData?.velocidadeNominalPpm || 50;
+  const turnos = oeeData?.turnos || {};
 
-  // Vêm da configuração do OEE (tela de Configurar) agora — não são mais
-  // fixos no código.
-  const plannedTimeSec = oeeData?.tempoPlanejadoSeg || 28800;
-  const idealCycleTimeSec = oeeData?.tempoCicloIdealSeg || 20;
+  // Assim que os dados dos turnos chegam pela primeira vez, seleciona
+  // automaticamente o que estiver rodando agora (isAtual) — só troca a
+  // seleção sozinha nessa primeira vez, pra não tirar o usuário da aba que
+  // ele escolheu olhar manualmente depois.
+  useEffect(() => {
+    const atual = TURNO_KEYS.find((k) => turnos[k]?.isAtual);
+    if (atual) setSelectedTurno(atual);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Object.keys(turnos).length]);
 
-  // Carrega as configurações salvas no localStorage (ou usa os padrões de 80% de meta)
-  const savedConfig = JSON.parse(localStorage.getItem('turnosConfig')) || {};
-  const metaAtual = savedConfig[selectedTurno === 'atual' ? 'turnoB' : selectedTurno === 'turnoA' ? 'turnoA' : 'turnoC']?.metaOee || 80;
+  const turnoSelecionado = turnos[selectedTurno] || ZERO_TURNO;
+  const metaAtual = turnoSelecionado.metaOee || 80;
 
-  // Cálculo do Turno Atual (Turno B)
+  const runTimeSec = turnoSelecionado.runTimeSec || 0;
+  const totalCount = turnoSelecionado.totalCount || 0;
+  const refugoCount = turnoSelecionado.refugoCount || 0;
+  const goodCount = turnoSelecionado.goodCount || 0;
+  const plannedTimeSec = turnoSelecionado.plannedSeg || 28800;
+  const velocidadeInstantaneaPpm = turnoSelecionado.velocidadeInstantaneaPpm;
+
+  // Cálculo do turno selecionado
   const availability = plannedTimeSec > 0 ? Math.min(100, (runTimeSec / plannedTimeSec) * 100) : 0;
-  // Performance: preferencialmente a partir do tempo de ciclo REAL, medido
-  // pelo próprio CLP (mais preciso — reflete paradas curtas e variação de
-  // velocidade ciclo a ciclo). Se essa variável ainda não estiver mapeada ou
-  // sem leituras na janela, cai pro cálculo estimado (tempo de ciclo ideal x
-  // contagem, sobre o tempo rodando).
-  const performance = tempoCicloRealSeg
-    ? Math.min(100, (idealCycleTimeSec / tempoCicloRealSeg) * 100)
-    : (runTimeSec > 0 ? Math.min(100, ((idealCycleTimeSec * totalCount) / runTimeSec) * 100) : 0);
+  // Performance em pacotes/minuto: velocidade real média (contagem total
+  // dividida pelo tempo rodando, não pelo tempo total do turno — isola a
+  // perda de velocidade da perda de disponibilidade, que já é contada à
+  // parte) sobre a velocidade nominal da linha.
+  const velocidadeReaMediaPpm = runTimeSec > 0 ? (totalCount / (runTimeSec / 60)) : 0;
+  const performance = velocidadeNominalPpm > 0 ? Math.min(100, (velocidadeReaMediaPpm / velocidadeNominalPpm) * 100) : 0;
   const quality = totalCount > 0 ? Math.min(100, (goodCount / totalCount) * 100) : 100;
   const oeeAtual = (availability * performance * quality) / 10000;
 
-  const turnosHistoricos = {
-    atual: { availability, performance, quality, oee: oeeAtual, label: 'Turno Atual (B)' },
-    turnoA: { availability: 78.0, performance: 85.0, quality: 95.0, oee: 74.5, label: 'Turno A' },
-    turnoC: { availability: 88.5, performance: 91.0, quality: 97.0, oee: 82.8, label: 'Turno C' }
+  const turnoLabel = (key) => {
+    const t = turnos[key];
+    if (!t?.nome) return key === 'turnoA' ? 'Turno A' : key === 'turnoB' ? 'Turno B' : 'Turno C';
+    return t.isAtual ? `${t.nome} (Atual)` : t.nome;
   };
 
-  const currentMetrics = turnosHistoricos[selectedTurno];
+  const currentMetrics = {
+    availability, performance, quality, oee: oeeAtual,
+    label: turnoLabel(selectedTurno)
+  };
 
   const getOeeColor = (val, meta) => {
     if (val < meta - 20) return '#ef4444';
@@ -49,6 +69,8 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
     return '#22c55e';
   };
 
+  // Gráfico de tendência: ainda é uma simulação em cima do OEE atual do
+  // turno selecionado (não é histórico real ponto a ponto ainda).
   useEffect(() => {
     const mock = [];
     const now = new Date();
@@ -76,6 +98,24 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
   const c3 = 2 * Math.PI * r3;
   const stroke3 = c3 - (currentMetrics.quality / 100) * c3;
 
+  const handleReset = async () => {
+    if (!window.confirm('Zerar os contadores do OEE a partir de agora? Isso não muda nada no CLP — só marca este instante como novo ponto de partida pros cálculos.')) return;
+    setResetting(true);
+    setResetError('');
+    try {
+      const res = await api.post('/api/oee/reset');
+      if (isOk(res)) {
+        if (onRefreshOee) await onRefreshOee();
+      } else {
+        setResetError(res.data?.error || 'Erro ao zerar: sem permissão ou sessão expirada.');
+      }
+    } catch (err) {
+      setResetError('Erro ao zerar contadores do OEE.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div className="h-full w-full bg-slate-900 text-slate-100 p-4 flex flex-col justify-between overflow-hidden">
       {/* Cabeçalho */}
@@ -89,35 +129,53 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
           </div>
         </div>
 
-        {/* Grupo Central: Seletor de Turnos + Botão de Configuração */}
+        {/* Grupo Central: Seletor de Turnos + Botões */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 p-1 rounded-lg">
             <span className="text-slate-400 text-xs px-2 font-semibold">TURNO:</span>
-            <button
-              onClick={() => setSelectedTurno('turnoA')}
-              className={`px-3 py-1 rounded text-xs font-bold transition ${
-                selectedTurno === 'turnoA' ? 'bg-amber-600 text-white shadow' : 'text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              Turno A
-            </button>
-            <button
-              onClick={() => setSelectedTurno('atual')}
-              className={`px-3 py-1 rounded text-xs font-bold transition ${
-                selectedTurno === 'atual' ? 'bg-amber-600 text-white shadow' : 'text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              Atual (B)
-            </button>
-            <button
-              onClick={() => setSelectedTurno('turnoC')}
-              className={`px-3 py-1 rounded text-xs font-bold transition ${
-                selectedTurno === 'turnoC' ? 'bg-amber-600 text-white shadow' : 'text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              Turno C
-            </button>
+            {TURNO_KEYS.map((key) => (
+              <button
+                key={key}
+                onClick={() => setSelectedTurno(key)}
+                className={`px-3 py-1 rounded text-xs font-bold transition flex items-center gap-1.5 ${
+                  selectedTurno === key ? 'bg-amber-600 text-white shadow' : 'text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                {turnos[key]?.isAtual && (
+                  <span className="size-1.5 rounded-full bg-emerald-400 shrink-0" title="Rodando agora" />
+                )}
+                {turnos[key]?.nome || (key === 'turnoA' ? 'Turno A' : key === 'turnoB' ? 'Turno B' : 'Turno C')}
+              </button>
+            ))}
           </div>
+
+          <div className="flex items-center bg-slate-800 border border-slate-700 rounded px-2 py-1 gap-1">
+            <RefreshCw size={14} className={`text-amber-500 ${refreshInterval > 0 ? 'animate-spin' : ''}`} style={{ animationDuration: '4s' }} />
+            <select
+              value={refreshInterval}
+              onChange={(e) => onRefreshIntervalChange?.(Number(e.target.value))}
+              className="bg-slate-900 text-slate-200 text-xs rounded border border-slate-700 px-1.5 py-0.5 focus:outline-none"
+              title="Frequência de atualização automática"
+            >
+              <option value={1000}>1s</option>
+              <option value={2000}>2s</option>
+              <option value={5000}>5s</option>
+              <option value={10000}>10s</option>
+              <option value={30000}>30s</option>
+              <option value={0}>Off</option>
+            </select>
+          </div>
+
+          {canConfig && (
+            <button
+              onClick={handleReset}
+              disabled={resetting}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-red-900/60 text-slate-300 hover:text-red-300 border border-slate-700 hover:border-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow disabled:opacity-50"
+              title="Zerar os contadores do OEE a partir de agora"
+            >
+              <RotateCcw size={14} /> {resetting ? 'Zerando…' : 'Zerar'}
+            </button>
+          )}
 
           {canConfig && (
             <button
@@ -137,11 +195,22 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
           <span className="text-slate-300">TOT: <strong className="text-amber-400">{totalCount}</strong></span>
           <span className="text-slate-300">BOAS: <strong className="text-emerald-400">{goodCount}</strong></span>
           <span className="text-slate-300">REFUGO: <strong className="text-red-400">{refugoCount}</strong></span>
-          {tempoCicloRealSeg != null && (
-            <span className="text-slate-300">CICLO: <strong className="text-sky-400">{tempoCicloRealSeg.toFixed(1)}s</strong></span>
+          {velocidadeInstantaneaPpm != null && (
+            <span className="text-slate-300">
+              VELOCIDADE: <strong className="text-sky-400">{velocidadeInstantaneaPpm.toFixed(0)} pct/min</strong>
+            </span>
           )}
+          <span className="text-slate-300">
+            NOMINAL: <strong className="text-violet-400">{velocidadeNominalPpm} pct/min</strong>
+          </span>
         </div>
       </div>
+
+      {resetError && (
+        <div className="bg-red-950/40 border border-red-700 text-red-200 text-xs rounded-lg px-4 py-2.5">
+          {resetError}
+        </div>
+      )}
 
       {!isOeeConfigured && (
         <div className="bg-amber-950/40 border border-amber-700 text-amber-200 text-xs rounded-lg px-4 py-2.5 flex items-center justify-between gap-3">
@@ -160,9 +229,16 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
         </div>
       )}
 
+      {isOeeConfigured && TURNO_KEYS.every((k) => !turnos[k]) && (
+        <div className="bg-amber-950/40 border border-amber-700 text-amber-200 text-xs rounded-lg px-4 py-2.5">
+          Nenhum turno foi salvo ainda em "Configurar" → Parâmetros Operacionais por Turno — sem isso, não dá pra saber
+          o horário/duração de cada turno pra calcular a Disponibilidade.
+        </div>
+      )}
+
       {/* Seção Central */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 my-auto">
-        
+
         {/* Coluna Esquerda: Cards de Métricas */}
         <div className="lg:col-span-4 flex flex-col justify-between gap-3">
           <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-3 shadow-md flex items-center justify-between">
@@ -177,6 +253,11 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
             <div>
               <span className="text-slate-400 text-[11px] font-semibold uppercase">Performance ({currentMetrics.label})</span>
               <h2 className="text-2xl font-bold text-amber-400 font-mono mt-0.5">{currentMetrics.performance.toFixed(1)}%</h2>
+              {turnoSelecionado.isAtual && velocidadeInstantaneaPpm != null && (
+                <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                  Agora: <span className="text-sky-400 font-bold">{velocidadeInstantaneaPpm.toFixed(0)}</span> de {velocidadeNominalPpm} pct/min
+                </p>
+              )}
             </div>
             <Clock className="text-amber-400 bg-amber-950/40 p-2 rounded-lg border border-amber-500/20" size={36} />
           </div>
@@ -196,7 +277,7 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
             <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
               OEE Consolidado — {currentMetrics.label}
             </h3>
-            
+
             <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
               estaNaMeta ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40' : 'bg-red-950/60 text-red-400 border-red-500/40'
             }`}>
@@ -248,12 +329,12 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
               <XAxis dataKey="time" stroke="#94a3b8" tick={{ fontSize: 10 }} />
               <YAxis domain={[0, 100]} stroke="#94a3b8" tick={{ fontSize: 10 }} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', color: '#f1f5f9', borderRadius: '6px', fontSize: '11px' }}
                 itemStyle={{ color: '#38bdf8' }}
               />
               <ReferenceLine y={metaAtual} stroke="#ef4444" strokeDasharray="4 4" label={{ value: `Meta ${metaAtual}%`, fill: '#ef4444', fontSize: 10, position: 'top' }} />
-              
+
               <Line type="monotone" dataKey="oee" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 3, fill: '#38bdf8' }} activeDot={{ r: 5 }} name="Tendência OEE (%)" />
             </LineChart>
           </ResponsiveContainer>

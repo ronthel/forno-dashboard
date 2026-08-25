@@ -4,8 +4,8 @@ import { Home, Save, Settings, Clock, Target, Check, Gauge, AlertTriangle } from
 
 const EMPTY_OEE_CONFIG = {
   fieldTempoRodando: '', fieldContagemTotal: '', fieldContagemRefugo: '',
-  fieldMaquinaRodando: '', fieldTempoCicloReal: '',
-  tempoCicloIdealSeg: 20, tempoPlanejadoSeg: 28800
+  fieldMaquinaRodando: '', fieldVelocidadeNominal: '', fieldVelocidadeReal: '',
+  velocidadeNominalPpm: 50, tempoPlanejadoSeg: 28800
 };
 
 export default function ConfigView({ onBack }) {
@@ -58,8 +58,9 @@ export default function ConfigView({ onBack }) {
             fieldContagemTotal: res.data.fieldContagemTotal || '',
             fieldContagemRefugo: res.data.fieldContagemRefugo || '',
             fieldMaquinaRodando: res.data.fieldMaquinaRodando || '',
-            fieldTempoCicloReal: res.data.fieldTempoCicloReal || '',
-            tempoCicloIdealSeg: res.data.tempoCicloIdealSeg ?? 20,
+            fieldVelocidadeNominal: res.data.fieldVelocidadeNominal || '',
+            fieldVelocidadeReal: res.data.fieldVelocidadeReal || '',
+            velocidadeNominalPpm: res.data.velocidadeNominalPpm ?? 50,
             tempoPlanejadoSeg: res.data.tempoPlanejadoSeg ?? 28800
           });
         }
@@ -216,7 +217,8 @@ export default function ConfigView({ onBack }) {
             { key: 'fieldContagemTotal', label: 'Contagem Total (obrigatório)', hint: 'Peças/lotes produzidos — crescente, nunca zera' },
             { key: 'fieldContagemRefugo', label: 'Contagem de Refugo', hint: 'Peças/lotes rejeitados — crescente, nunca zera. Boas = Total − Refugo' },
             { key: 'fieldMaquinaRodando', label: 'Máquina Rodando (opcional)', hint: 'Status instantâneo (0/1) — só exibido, não entra na conta' },
-            { key: 'fieldTempoCicloReal', label: 'Tempo de Ciclo Real', hint: 'Calculado pelo CLP, em segundos — usado na Performance' },
+            { key: 'fieldVelocidadeNominal', label: 'Velocidade Nominal (opcional)', hint: 'Setpoint de velocidade da linha (pacotes/min), vindo do CLP — se mapeada, substitui o número fixo abaixo' },
+            { key: 'fieldVelocidadeReal', label: 'Velocidade Real (opcional)', hint: 'Velocidade instantânea (pacotes/min) já calculada pelo CLP — se mapeada, substitui o cálculo por Contagem Total' },
           ].map(({ key, label, hint }) => (
             <div key={key} className="flex flex-col gap-1.5">
               <label className="text-slate-400 text-xs font-semibold">{label}</label>
@@ -237,20 +239,23 @@ export default function ConfigView({ onBack }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pt-4 border-t border-slate-700">
           <div className="flex flex-col gap-1.5">
-            <label className="text-slate-400 text-xs font-semibold">Tempo de Ciclo Ideal (segundos)</label>
+            <label className="text-slate-400 text-xs font-semibold">Velocidade Nominal — reserva (pacotes/min)</label>
             <input
               type="number"
               min="0.1"
               step="0.1"
-              value={oeeConfig.tempoCicloIdealSeg}
-              onChange={(e) => handleOeeChange('tempoCicloIdealSeg', Number(e.target.value))}
+              value={oeeConfig.velocidadeNominalPpm}
+              onChange={(e) => handleOeeChange('velocidadeNominalPpm', Number(e.target.value))}
               className="bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 text-sm font-mono focus:outline-none focus:border-amber-500"
               required
             />
-            <p className="text-[11px] text-slate-500">Tempo mínimo teórico de um ciclo, com tudo correndo bem</p>
+            <p className="text-[11px] text-slate-500">
+              Usada como referência 100% na Performance. Só entra em uso se a variável "Velocidade Nominal" acima não
+              estiver mapeada — quando estiver, o valor vem do CLP e este número aqui é ignorado.
+            </p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-slate-400 text-xs font-semibold">Janela de Cálculo (segundos)</label>
+            <label className="text-slate-400 text-xs font-semibold">Janela de Cálculo — reserva (segundos)</label>
             <input
               type="number"
               min="60"
@@ -260,7 +265,11 @@ export default function ConfigView({ onBack }) {
               className="bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-slate-100 text-sm font-mono focus:outline-none focus:border-amber-500"
               required
             />
-            <p className="text-[11px] text-slate-500">Tempo planejado de produção — padrão 28800s (8h/turno)</p>
+            <p className="text-[11px] text-slate-500">
+              O tempo planejado normalmente vem do turno configurado acima (Parâmetros Operacionais por Turno),
+              detectado automaticamente pelo horário atual. Isso aqui só é usado se nenhum turno cobrir o
+              horário de agora, ou se nenhum turno tiver sido salvo ainda.
+            </p>
           </div>
         </div>
 

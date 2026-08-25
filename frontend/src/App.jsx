@@ -80,17 +80,19 @@ export default function App() {
   const [fieldSearchQuery, setFieldSearchQuery] = useState('');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
+  // Métricas dos 3 turnos configurados (turnos_config), cada um com sua
+  // própria ocorrência mais recente — ver GET /api/oee/metrics.
   const [oeeMetricsData, setOeeMetricsData] = useState({
     configured: false,
-    runTimeSec: 0,
-    totalCount: 0,
-    refugoCount: 0,
-    goodCount: 0,
-    maquinaRodando: null,
-    tempoCicloRealSeg: null,
-    tempoCicloIdealSeg: 20,
-    tempoPlanejadoSeg: 28800
+    velocidadeNominalPpm: 50,
+    turnos: {},
+    zeradoEm: null
   });
+  // Intervalo de atualização automática da tela de OEE — separado do
+  // refreshInterval do dashboard principal, porque faz sentido acompanhar o
+  // OEE bem mais de perto (ex: 1s) sem precisar deixar os gráficos do
+  // dashboard nessa mesma frequência.
+  const [oeeRefreshInterval, setOeeRefreshInterval] = useState(1000);
 
   // Alarmes ativos (status = ATIVO no banco), consultados periodicamente —
   // alimenta o badge do sininho e a barra de alarmes recentes no rodapé do
@@ -194,14 +196,9 @@ export default function App() {
         const data = res.data;
         setOeeMetricsData({
           configured: !!data.configured,
-          runTimeSec: data.runTimeSec || 0,
-          totalCount: data.totalCount || 0,
-          refugoCount: data.refugoCount || 0,
-          goodCount: data.goodCount || 0,
-          maquinaRodando: data.maquinaRodando,
-          tempoCicloRealSeg: data.tempoCicloRealSeg,
-          tempoCicloIdealSeg: data.tempoCicloIdealSeg || 20,
-          tempoPlanejadoSeg: data.tempoPlanejadoSeg || 28800
+          velocidadeNominalPpm: data.velocidadeNominalPpm || 50,
+          turnos: data.turnos || {},
+          zeradoEm: data.zeradoEm || null
         });
       }
     } catch (err) {
@@ -211,9 +208,10 @@ export default function App() {
 
   useEffect(() => {
     fetchOeeMetricsFromDb();
-    const interval = setInterval(fetchOeeMetricsFromDb, 10000);
+    if (oeeRefreshInterval <= 0) return; // "Off" — só a busca inicial acima, sem repetir
+    const interval = setInterval(fetchOeeMetricsFromDb, oeeRefreshInterval);
     return () => clearInterval(interval);
-  }, []);
+  }, [oeeRefreshInterval]);
 
   // Protege contra respostas "fora de ordem": se o usuário logar/trocar de
   // conta de novo antes da busca anterior terminar (ex: sair do operador e
@@ -486,6 +484,9 @@ export default function App() {
             onOpenConfig={() => setCurrentView('configTurnos')}
             oeeData={oeeMetricsData}
             canConfig={canConfig}
+            onRefreshOee={fetchOeeMetricsFromDb}
+            refreshInterval={oeeRefreshInterval}
+            onRefreshIntervalChange={setOeeRefreshInterval}
           />
         </div>
         <UserSwitchModal
