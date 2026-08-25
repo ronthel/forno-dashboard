@@ -81,9 +81,15 @@ export default function App() {
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
   const [oeeMetricsData, setOeeMetricsData] = useState({
+    configured: false,
     runTimeSec: 0,
     totalCount: 0,
-    goodCount: 0
+    refugoCount: 0,
+    goodCount: 0,
+    maquinaRodando: null,
+    tempoCicloRealSeg: null,
+    tempoCicloIdealSeg: 20,
+    tempoPlanejadoSeg: 28800
   });
 
   // Alarmes ativos (status = ATIVO no banco), consultados periodicamente —
@@ -187,9 +193,15 @@ export default function App() {
       if (isOk(res)) {
         const data = res.data;
         setOeeMetricsData({
+          configured: !!data.configured,
           runTimeSec: data.runTimeSec || 0,
           totalCount: data.totalCount || 0,
-          goodCount: data.goodCount || 0
+          refugoCount: data.refugoCount || 0,
+          goodCount: data.goodCount || 0,
+          maquinaRodando: data.maquinaRodando,
+          tempoCicloRealSeg: data.tempoCicloRealSeg,
+          tempoCicloIdealSeg: data.tempoCicloIdealSeg || 20,
+          tempoPlanejadoSeg: data.tempoPlanejadoSeg || 28800
         });
       }
     } catch (err) {

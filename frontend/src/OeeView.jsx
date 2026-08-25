@@ -6,12 +6,17 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
   const [historyData, setHistoryData] = useState([]);
   const [selectedTurno, setSelectedTurno] = useState('atual'); // 'atual' (Turno B), 'turnoA', 'turnoC'
 
+  const isOeeConfigured = !!oeeData?.configured;
   const runTimeSec = oeeData?.runTimeSec || 0;
   const totalCount = oeeData?.totalCount || 0;
+  const refugoCount = oeeData?.refugoCount || 0;
   const goodCount = oeeData?.goodCount || 0;
+  const tempoCicloRealSeg = oeeData?.tempoCicloRealSeg;
 
-  const plannedTimeSec = 28800;
-  const idealCycleTimeSec = 20;
+  // Vêm da configuração do OEE (tela de Configurar) agora — não são mais
+  // fixos no código.
+  const plannedTimeSec = oeeData?.tempoPlanejadoSeg || 28800;
+  const idealCycleTimeSec = oeeData?.tempoCicloIdealSeg || 20;
 
   // Carrega as configurações salvas no localStorage (ou usa os padrões de 80% de meta)
   const savedConfig = JSON.parse(localStorage.getItem('turnosConfig')) || {};
@@ -19,7 +24,14 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
 
   // Cálculo do Turno Atual (Turno B)
   const availability = plannedTimeSec > 0 ? Math.min(100, (runTimeSec / plannedTimeSec) * 100) : 0;
-  const performance = runTimeSec > 0 ? Math.min(100, ((idealCycleTimeSec * totalCount) / runTimeSec) * 100) : 0;
+  // Performance: preferencialmente a partir do tempo de ciclo REAL, medido
+  // pelo próprio CLP (mais preciso — reflete paradas curtas e variação de
+  // velocidade ciclo a ciclo). Se essa variável ainda não estiver mapeada ou
+  // sem leituras na janela, cai pro cálculo estimado (tempo de ciclo ideal x
+  // contagem, sobre o tempo rodando).
+  const performance = tempoCicloRealSeg
+    ? Math.min(100, (idealCycleTimeSec / tempoCicloRealSeg) * 100)
+    : (runTimeSec > 0 ? Math.min(100, ((idealCycleTimeSec * totalCount) / runTimeSec) * 100) : 0);
   const quality = totalCount > 0 ? Math.min(100, (goodCount / totalCount) * 100) : 100;
   const oeeAtual = (availability * performance * quality) / 10000;
 
@@ -124,8 +136,29 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig }) {
           <span className="text-slate-300">RUN: <strong className="text-blue-400">{runTimeSec}s</strong></span>
           <span className="text-slate-300">TOT: <strong className="text-amber-400">{totalCount}</strong></span>
           <span className="text-slate-300">BOAS: <strong className="text-emerald-400">{goodCount}</strong></span>
+          <span className="text-slate-300">REFUGO: <strong className="text-red-400">{refugoCount}</strong></span>
+          {tempoCicloRealSeg != null && (
+            <span className="text-slate-300">CICLO: <strong className="text-sky-400">{tempoCicloRealSeg.toFixed(1)}s</strong></span>
+          )}
         </div>
       </div>
+
+      {!isOeeConfigured && (
+        <div className="bg-amber-950/40 border border-amber-700 text-amber-200 text-xs rounded-lg px-4 py-2.5 flex items-center justify-between gap-3">
+          <span>
+            O cálculo do OEE ainda não está ligado a nenhuma variável real — os números abaixo estão zerados.
+            {canConfig ? ' Configure o mapeamento das variáveis em "Configurar".' : ' Peça pra um supervisor/administrador configurar em "Configurar".'}
+          </span>
+          {canConfig && (
+            <button
+              onClick={onOpenConfig}
+              className="shrink-0 flex items-center gap-1.5 bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+            >
+              <Settings size={14} /> Configurar agora
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Seção Central */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 my-auto">

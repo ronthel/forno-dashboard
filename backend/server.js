@@ -119,6 +119,25 @@ async function initPostgres() {
         meta_oee NUMERIC(5,2) NOT NULL
       );
 
+      -- Mapeamento de variáveis do OEE: em vez de nomes de tag fixos no
+      -- código, cada papel (tempo rodando, contagem total, contagem de
+      -- refugo, status da máquina, tempo de ciclo real) aponta pra uma das
+      -- variáveis já cadastradas em sensores_config/InfluxDB — configurável
+      -- pela tela, sem precisar mexer em código quando o CLP mudar de tag.
+      -- Linha única (id sempre 1, travado pelo CHECK).
+      CREATE TABLE IF NOT EXISTS oee_config (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        field_tempo_rodando TEXT,
+        field_contagem_total TEXT,
+        field_contagem_refugo TEXT,
+        field_maquina_rodando TEXT,
+        field_tempo_ciclo_real TEXT,
+        tempo_ciclo_ideal_seg NUMERIC NOT NULL DEFAULT 20,
+        tempo_planejado_seg NUMERIC NOT NULL DEFAULT 28800,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT oee_config_single_row CHECK (id = 1)
+      );
+
       CREATE TABLE IF NOT EXISTS sensores_config (
         field_name VARCHAR(100) PRIMARY KEY,
         descricao VARCHAR(200),
@@ -877,38 +896,177 @@ app.get('/api/audit-log', requireRole(['administrador']), async (req, res) => {
   }
 });
 
+// --- CONFIGURAÇÃO DO OEE (mapeamento de variáveis) ---
+// Em vez de nomes de tag fixos no código, cada papel do cálculo de OEE
+// aponta pra uma das variáveis já cadastradas (sensores_config/InfluxDB) —
+// configurável pela tela de Configuração, sem precisar mexer em código
+// quando o CLP ganhar ou trocar uma tag.
+app.get('/api/config/oee', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM oee_config WHERE id = 1');
+    if (result.rows.length === 0) {
+      return res.json({
+        fieldTempoRodando: null, fieldContagemTotal: null, fieldContagemRefugo: null,
+        fieldMaquinaRodando: null, fieldTempoCicloReal: null,
+        tempoCicloIdealSeg: 20, tempoPlanejadoSeg: 28800
+      });
+    }
+    const row = result.rows[0];
+    res.json({
+      fieldTempoRodando: row.field_tempo_rodando,
+      fieldContagemTotal: row.field_contagem_total,
+      fieldContagemRefugo: row.field_contagem_refugo,
+      fieldMaquinaRodando: row.field_maquina_rodando,
+      fieldTempoCicloReal: row.field_tempo_ciclo_real,
+      tempoCicloIdealSeg: Number(row.tempo_ciclo_ideal_seg),
+      tempoPlanejadoSeg: Number(row.tempo_planejado_seg)
+    });
+  } catch (err) {
+    console.error('Erro ao buscar config do OEE:', err);
+    res.status(500).json({ error: 'Erro ao buscar configuração do OEE' });
+  }
+});
+
+app.post('/api/config/oee', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const {
+    fieldTempoRodando, fieldContagemTotal, fieldContagemRefugo,
+    fieldMaquinaRodando, fieldTempoCicloReal,
+    tempoCicloIdealSeg, tempoPlanejadoSeg
+  } = req.body;
+  try {
+    await db.query(
+      `INSERT INTO oee_config (id, field_tempo_rodando, field_contagem_total, field_contagem_refugo,
+                                field_maquina_rodando, field_tempo_ciclo_real, tempo_ciclo_ideal_seg, tempo_planejado_seg, updated_at)
+       VALUES (1, $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+       ON CONFLICT (id) DO UPDATE SET
+         field_tempo_rodando = EXCLUDED.field_tempo_rodando,
+         field_contagem_total = EXCLUDED.field_contagem_total,
+         field_contagem_refugo = EXCLUDED.field_contagem_refugo,
+         field_maquina_rodando = EXCLUDED.field_maquina_rodando,
+         field_tempo_ciclo_real = EXCLUDED.field_tempo_ciclo_real,
+         tempo_ciclo_ideal_seg = EXCLUDED.tempo_ciclo_ideal_seg,
+         tempo_planejado_seg = EXCLUDED.tempo_planejado_seg,
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        fieldTempoRodando || null, fieldContagemTotal || null, fieldContagemRefugo || null,
+        fieldMaquinaRodando || null, fieldTempoCicloReal || null,
+        Number(tempoCicloIdealSeg) || 20, Number(tempoPlanejadoSeg) || 28800
+      ]
+    );
+
+    logAudit({
+      userId: req.user.id, username: req.user.username, role: req.user.role,
+      action: 'salvou configuração do OEE',
+      details: { fieldTempoRodando, fieldContagemTotal, fieldContagemRefugo, fieldMaquinaRodando, fieldTempoCicloReal, tempoCicloIdealSeg, tempoPlanejadoSeg }
+    });
+
+    res.json({ message: 'Configuração do OEE salva!' });
+  } catch (err) {
+    console.error('Erro ao salvar config do OEE:', err);
+    res.status(500).json({ error: 'Erro ao salvar configuração do OEE' });
+  }
+});
+
 // --- ROTA DE MÉTRICAS OEE ---
+// Busca a leitura mais recente de uma tag no InfluxDB (tag_events, formato
+// longo). Usada tanto pra tags cumulativas (contadores) quanto pro status
+// booleano da máquina.
+async function influxLatestValue(tagName) {
+  if (!tagName) return null;
+  const reader = await influxDB.query(
+    `SELECT value_num FROM "tag_events" WHERE tag_name = '${tagName}' ORDER BY time DESC LIMIT 1`
+  );
+  for await (const row of reader) return row.value_num;
+  return null;
+}
+
+// Busca a leitura mais próxima de "agora menos X segundos" — usada pra
+// calcular o DELTA de um contador cumulativo dentro de uma janela (ex: nas
+// últimas 8h), já que os contadores do CLP não zeram sozinhos (ver
+// recomendação de projeto do OEE). Se não houver leitura tão antiga ainda
+// (operação recente demais), retorna null — o chamador trata isso como "conta
+// desde o início" (delta = valor atual).
+async function influxValueBefore(tagName, secondsAgo) {
+  if (!tagName) return null;
+  const reader = await influxDB.query(
+    `SELECT value_num FROM "tag_events" WHERE tag_name = '${tagName}' AND time <= NOW() - INTERVAL '${Number(secondsAgo)} seconds' ORDER BY time DESC LIMIT 1`
+  );
+  for await (const row of reader) return row.value_num;
+  return null;
+}
+
+// Média de uma tag (não-cumulativa, ex: tempo de ciclo real) dentro da
+// janela dos últimos X segundos.
+async function influxAvgValue(tagName, secondsAgo) {
+  if (!tagName) return null;
+  const reader = await influxDB.query(
+    `SELECT AVG(value_num) AS avg_val FROM "tag_events" WHERE tag_name = '${tagName}' AND time >= NOW() - INTERVAL '${Number(secondsAgo)} seconds'`
+  );
+  for await (const row of reader) return row.avg_val;
+  return null;
+}
+
 app.get('/api/oee/metrics', async (req, res) => {
   try {
-    // tag_events e formato longo (uma linha por tag) - pega a leitura mais
-    // recente de CADA uma das 3 tags separadamente, em vez de uma linha so
-    // com as 3 colunas juntas (que so existia no formato antigo "Variaveis").
-    const sqlQuery = `
-      SELECT tag_name, value_num, time
-      FROM "tag_events"
-      WHERE tag_name IN ('RUN_TIME_SEC', 'TOTAL_COUNT', 'GOOD_COUNT')
-      ORDER BY time DESC
-      LIMIT 30
-    `;
+    const cfgRes = await db.query('SELECT * FROM oee_config WHERE id = 1');
+    const cfg = cfgRes.rows[0] || {};
+    const tempoPlanejadoSeg = Number(cfg.tempo_planejado_seg) || 28800;
+    const tempoCicloIdealSeg = Number(cfg.tempo_ciclo_ideal_seg) || 20;
 
-    const reader = await influxDB.query(sqlQuery);
-    const latestByTag = {};
-
-    for await (const row of reader) {
-      // ja ordenado por tempo DESC - a primeira ocorrencia de cada tag_name e a mais recente
-      if (!(row.tag_name in latestByTag)) {
-        latestByTag[row.tag_name] = row.value_num;
-      }
+    const configured = !!(cfg.field_tempo_rodando && cfg.field_contagem_total);
+    if (!configured) {
+      // Ainda não foi mapeada nenhuma variável (instalação nova, ou ninguém
+      // configurou ainda) — devolve zerado sem tentar consultar o InfluxDB
+      // com nomes de tag vazios.
+      return res.json({
+        configured: false,
+        runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
+        maquinaRodando: null, tempoCicloRealSeg: null,
+        tempoCicloIdealSeg, tempoPlanejadoSeg
+      });
     }
 
+    // Contadores cumulativos: delta entre "agora" e "início da janela"
+    // (tempoPlanejadoSeg atrás) — não a leitura bruta, que só cresce pra
+    // sempre e não representaria "este turno/janela".
+    const [
+      tempoRodandoAgora, tempoRodandoAntes,
+      totalAgora, totalAntes,
+      refugoAgora, refugoAntes,
+      maquinaRodando, tempoCicloRealSeg
+    ] = await Promise.all([
+      influxLatestValue(cfg.field_tempo_rodando),
+      influxValueBefore(cfg.field_tempo_rodando, tempoPlanejadoSeg),
+      influxLatestValue(cfg.field_contagem_total),
+      influxValueBefore(cfg.field_contagem_total, tempoPlanejadoSeg),
+      influxLatestValue(cfg.field_contagem_refugo),
+      influxValueBefore(cfg.field_contagem_refugo, tempoPlanejadoSeg),
+      influxLatestValue(cfg.field_maquina_rodando),
+      influxAvgValue(cfg.field_tempo_ciclo_real, tempoPlanejadoSeg)
+    ]);
+
+    const delta = (agora, antes) => Math.max(0, Number(agora || 0) - Number(antes ?? 0));
+
+    const runTimeSec = delta(tempoRodandoAgora, tempoRodandoAntes);
+    const totalCount = delta(totalAgora, totalAntes);
+    const refugoCount = delta(refugoAgora, refugoAntes);
+    const goodCount = Math.max(0, totalCount - refugoCount);
+
     res.json({
-      runTimeSec: Number(latestByTag.RUN_TIME_SEC || 0),
-      totalCount: Number(latestByTag.TOTAL_COUNT || 0),
-      goodCount: Number(latestByTag.GOOD_COUNT || 0)
+      configured: true,
+      runTimeSec, totalCount, refugoCount, goodCount,
+      maquinaRodando: maquinaRodando === null ? null : !!maquinaRodando,
+      tempoCicloRealSeg: tempoCicloRealSeg === null ? null : Number(tempoCicloRealSeg),
+      tempoCicloIdealSeg, tempoPlanejadoSeg
     });
   } catch (err) {
     console.error('[Erro OEE Metrics]:', err.message);
-    res.json({ runTimeSec: 0, totalCount: 0, goodCount: 0 });
+    res.json({
+      configured: false,
+      runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
+      maquinaRodando: null, tempoCicloRealSeg: null,
+      tempoCicloIdealSeg: 20, tempoPlanejadoSeg: 28800
+    });
   }
 });
 
