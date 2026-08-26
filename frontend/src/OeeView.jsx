@@ -54,7 +54,7 @@ function calcularOeePonto(ponto, velocidadeNominalPpm) {
   return Number(((availability * performance * quality) / 10000).toFixed(1));
 }
 
-export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, isAdmin, onRefreshOee, refreshInterval, onRefreshIntervalChange, isMuted, onAlarmChanged }) {
+export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData, canConfig, isAdmin, onRefreshOee, refreshInterval, onRefreshIntervalChange, isMuted, onAlarmChanged }) {
   const [historyData, setHistoryData] = useState([]);
   // Janela do turno selecionado (início/fim PROGRAMADO, em ms) — define o
   // eixo X inteiro do gráfico de tendência, mesmo nos trechos onde ainda
@@ -385,11 +385,11 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, isAd
         <div className="bg-amber-950/40 border border-amber-700 text-amber-200 text-xs rounded-lg px-3 py-1.5 flex items-center justify-between gap-3">
           <span>
             O cálculo do OEE ainda não está ligado a nenhuma variável real — os números abaixo estão zerados.
-            {canConfig ? ' Configure o mapeamento das variáveis em "Configurar".' : ' Peça pra um supervisor/administrador configurar em "Configurar".'}
+            {canConfig ? ' Configure o mapeamento das variáveis em "Parâmetros OEE".' : ' Peça pra um supervisor/administrador configurar em "Parâmetros OEE".'}
           </span>
           {canConfig && (
             <button
-              onClick={onOpenConfig}
+              onClick={onOpenOeeConfig}
               className="shrink-0 flex items-center gap-1.5 bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition"
             >
               <Settings size={14} /> Configurar agora
@@ -400,7 +400,7 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, isAd
 
       {isOeeConfigured && TURNO_KEYS.every((k) => !turnos[k]) && (
         <div className="bg-amber-950/40 border border-amber-700 text-amber-200 text-xs rounded-lg px-3 py-1.5">
-          Nenhum turno foi salvo ainda em "Configurar" → Parâmetros Operacionais por Turno — sem isso, não dá pra saber
+          Nenhum turno foi salvo ainda em "Turnos" → Parâmetros Operacionais por Turno — sem isso, não dá pra saber
           o horário/duração de cada turno pra calcular a Disponibilidade.
         </div>
       )}
@@ -467,9 +467,12 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, isAd
           </div>
         </div>
 
-        {/* Coluna Direita: OEE Consolidado */}
-        <div className="lg:col-span-8 bg-slate-800/90 border border-slate-700 rounded-xl p-2.5 shadow-md flex items-center gap-4">
-          <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+        {/* Coluna Direita: OEE Consolidado — só o mostrador, grande e
+            centralizado no quadrado dele, sem texto ao lado (os anéis já
+            usam as mesmas cores dos cards de Disponibilidade/Performance/
+            Qualidade à esquerda, que têm os rótulos). */}
+        <div className="lg:col-span-8 bg-slate-800/90 border border-slate-700 rounded-xl p-2 shadow-md flex items-center justify-center">
+          <div className="relative w-44 h-44 flex items-center justify-center shrink-0">
             <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
               <circle cx="100" cy="100" r={r1} fill="none" stroke="#1e293b" strokeWidth="13" />
               <circle cx="100" cy="100" r={r1} fill="none" stroke="#22c55e" strokeWidth="13"
@@ -485,16 +488,10 @@ export default function OeeView({ onBack, onOpenConfig, oeeData, canConfig, isAd
             </svg>
 
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-2xl font-extrabold font-mono tracking-tight" style={{ color: getOeeColor(currentMetrics.oee, metaAtual) }}>
+              <span className="text-4xl font-extrabold font-mono tracking-tight" style={{ color: getOeeColor(currentMetrics.oee, metaAtual) }}>
                 {currentMetrics.oee.toFixed(0)}%
               </span>
             </div>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-              OEE Consolidado — {currentMetrics.label}
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">Disponibilidade × Performance × Qualidade</p>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Gauge, Settings, Sliders, Users, ScrollText, Bell, User, LogOut, Clock } from 'lucide-react';
+import { Home, Gauge, Settings, Sliders, Users, ScrollText, Bell, User, LogOut, Clock, Wrench } from 'lucide-react';
 
 // Ordem e posição fixas de propósito — os botões nunca somem nem trocam de
 // lugar conforme a tela muda (só a permissão do usuário decide se aparecem
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { key: 'oee', label: 'Relatório OEE', icon: Gauge },
   { key: 'paradas', label: 'Paradas', icon: Clock },
   { key: 'configTurnos', label: 'Turnos', icon: Settings, requires: 'canConfig' },
+  { key: 'configOee', label: 'Parâmetros OEE', icon: Wrench, requires: 'canConfig' },
   { key: 'configSensores', label: 'Variáveis', icon: Sliders, requires: 'canConfig' },
   { key: 'userManagement', label: 'Usuários', icon: Users, requires: 'canManageUsers' },
   { key: 'auditLog', label: 'Auditoria', icon: ScrollText, requires: 'canViewAudit' },

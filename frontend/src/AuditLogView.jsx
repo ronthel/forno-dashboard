@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api, { isOk } from './api';
 import jsPDF from 'jspdf';
 import { Home, ScrollText, Search, Download, FileText, RefreshCw, AlertCircle, Loader2, X } from 'lucide-react';
+import { hojeInicioLocal, agoraLocal } from './dateRangeUtils';
 
 // Formata o campo "details" (objeto JSON ou null) numa string curta e legível,
 // ex.: "novoUsuario: joao, perfil: operador".
@@ -120,8 +121,10 @@ export default function AuditLogView({ onBack }) {
   const [loadError, setLoadError] = useState('');
 
   const [usernameFilter, setUsernameFilter] = useState('');
-  const [startDateFilter, setStartDateFilter] = useState('');
-  const [endDateFilter, setEndDateFilter] = useState('');
+  // Por padrão mostra só hoje — pra outro período, muda "De"/"Até" e clica
+  // em Filtrar (ou exporta CSV/PDF do que aparecer na tela).
+  const [startDateFilter, setStartDateFilter] = useState(hojeInicioLocal());
+  const [endDateFilter, setEndDateFilter] = useState(agoraLocal());
   const [searchFilter, setSearchFilter] = useState('');
 
   // Recebe os filtros como argumento explícito (em vez de ler do estado por
@@ -153,7 +156,7 @@ export default function AuditLogView({ onBack }) {
   // Só busca uma vez, ao montar a tela (com filtros vazios) — as buscas
   // seguintes são disparadas pelos botões Filtrar/Limpar/Atualizar.
   useEffect(() => {
-    fetchAuditLog({ username: '', startDate: '', endDate: '', search: '' });
+    fetchAuditLog({ username: '', startDate: startDateFilter, endDate: endDateFilter, search: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -170,11 +173,13 @@ export default function AuditLogView({ onBack }) {
   };
 
   const handleClearFilters = () => {
+    const inicioHoje = hojeInicioLocal();
+    const agora = agoraLocal();
     setUsernameFilter('');
-    setStartDateFilter('');
-    setEndDateFilter('');
+    setStartDateFilter(inicioHoje);
+    setEndDateFilter(agora);
     setSearchFilter('');
-    fetchAuditLog({ username: '', startDate: '', endDate: '', search: '' });
+    fetchAuditLog({ username: '', startDate: inicioHoje, endDate: agora, search: '' });
   };
 
   const handleRefresh = () => {
@@ -192,7 +197,7 @@ export default function AuditLogView({ onBack }) {
               <ScrollText size={22} /> Auditoria do Sistema
             </h1>
             <p className="text-slate-400 text-xs">
-              Área restrita a administradores — histórico de alterações (últimos {rows.length >= 200 ? '200+' : rows.length} registros exibidos)
+              Área restrita a administradores — mostrando hoje ({rows.length >= 200 ? '200+' : rows.length} registros); pra outro período, ajuste "De"/"Até" abaixo e filtre
             </p>
           </div>
         </div>

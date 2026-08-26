@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api, { isOk } from './api';
 import jsPDF from 'jspdf';
 import { Home, AlertTriangle, Search, Download, FileText, RefreshCw, AlertCircle, Loader2, X, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { hojeInicioLocal, agoraLocal } from './dateRangeUtils';
 
 // Deriva um rótulo/estilo de status a partir de status (ATIVO/NORMALIZADO) +
 // acknowledged — as três situações que o usuário acompanha: ativo sem
@@ -131,8 +132,10 @@ export default function AlarmsView({ onBack, currentUserRole }) {
 
   const [fieldNameFilter, setFieldNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [startDateFilter, setStartDateFilter] = useState('');
-  const [endDateFilter, setEndDateFilter] = useState('');
+  // Por padrão mostra só hoje — pra outro período, muda "De"/"Até" e clica
+  // em Filtrar (ou exporta CSV/PDF do que aparecer na tela).
+  const [startDateFilter, setStartDateFilter] = useState(hojeInicioLocal());
+  const [endDateFilter, setEndDateFilter] = useState(agoraLocal());
   const [searchFilter, setSearchFilter] = useState('');
 
   const fetchAlarms = useCallback(async (filters) => {
@@ -160,7 +163,7 @@ export default function AlarmsView({ onBack, currentUserRole }) {
   }, []);
 
   useEffect(() => {
-    fetchAlarms({ fieldName: '', status: '', startDate: '', endDate: '', search: '' });
+    fetchAlarms({ fieldName: '', status: '', startDate: startDateFilter, endDate: endDateFilter, search: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -178,12 +181,14 @@ export default function AlarmsView({ onBack, currentUserRole }) {
   };
 
   const handleClearFilters = () => {
+    const inicioHoje = hojeInicioLocal();
+    const agora = agoraLocal();
     setFieldNameFilter('');
     setStatusFilter('');
-    setStartDateFilter('');
-    setEndDateFilter('');
+    setStartDateFilter(inicioHoje);
+    setEndDateFilter(agora);
     setSearchFilter('');
-    fetchAlarms({ fieldName: '', status: '', startDate: '', endDate: '', search: '' });
+    fetchAlarms({ fieldName: '', status: '', startDate: inicioHoje, endDate: agora, search: '' });
   };
 
   const handleRefresh = () => fetchAlarms(currentFilters());
@@ -234,7 +239,7 @@ export default function AlarmsView({ onBack, currentUserRole }) {
               <AlertTriangle size={22} /> Central de Alarmes
             </h1>
             <p className="text-slate-400 text-xs">
-              Histórico e estado dos alarmes ({rows.length >= 200 ? '200+' : rows.length} registros exibidos)
+              Mostrando hoje ({rows.length >= 200 ? '200+' : rows.length} registros) — pra outro período, ajuste "De"/"Até" abaixo e filtre
             </p>
           </div>
         </div>

@@ -8,6 +8,7 @@ import AlarmsView from './AlarmsView';
 import ParadasView from './ParadasView';
 import OeeView from './OeeView';
 import ConfigView from './ConfigView';
+import OeeConfigView from './OeeConfigView';
 import SensorConfigView from './SensorConfigView';
 import UserManagementView from './UserManagementView';
 import ForceChangePasswordView from './ForceChangePasswordView';
@@ -448,7 +449,7 @@ export default function App() {
   // permissão (ex.: troca de usuário para um perfil sem acesso enquanto a
   // tela já estava aberta), volta para o dashboard automaticamente.
   useEffect(() => {
-    const restrictedViews = ['configTurnos', 'configSensores'];
+    const restrictedViews = ['configTurnos', 'configOee', 'configSensores'];
     if (restrictedViews.includes(currentView) && !canConfig) {
       setCurrentView('dashboard');
     }
@@ -524,6 +525,7 @@ export default function App() {
           <OeeView
             onBack={() => setCurrentView('dashboard')}
             onOpenConfig={() => setCurrentView('configTurnos')}
+            onOpenOeeConfig={() => setCurrentView('configOee')}
             oeeData={oeeMetricsData}
             canConfig={canConfig}
             isAdmin={canManageUsers}
@@ -552,6 +554,25 @@ export default function App() {
         <Sidebar {...sidebarProps} />
         <div className="flex-1 overflow-hidden">
           <ConfigView onBack={() => setCurrentView('dashboard')} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
+  }
+
+  if (currentView === 'configOee' && canConfig) {
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <OeeConfigView onBack={() => setCurrentView('dashboard')} />
         </div>
         <UserSwitchModal
           isOpen={isUserModalOpen}
