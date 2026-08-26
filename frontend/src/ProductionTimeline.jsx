@@ -55,17 +55,26 @@ export default function ProductionTimeline({ blocos, inicio, fimProgramado }) {
   const pctProduzindo = decorridoSeg > 0 ? (totais.produzindoSeg / decorridoSeg) * 100 : 0;
   const pctParado = decorridoSeg > 0 ? (totais.paradoSeg / decorridoSeg) * 100 : 0;
 
+  // Arredondamento das pontas feito manualmente por classe (em vez de
+  // overflow-hidden no container) — overflow-hidden cortaria a dica do
+  // hover, que aparece ACIMA do bloco (fora da altura de 24px da barra).
+  const semFuturo = futuroSeg <= 0;
+
   return (
     <div>
-      <div className="flex h-6 rounded-lg overflow-hidden border border-slate-700/60 shadow-inner bg-slate-900/70">
+      <div className="flex h-6 rounded-lg border border-slate-700/60 shadow-inner bg-slate-900/70">
         {blocos.map((b, i) => {
           const isParada = b.status === 'parada';
           const widthPct = (b.duracaoSeg / totalSeg) * 100;
           const key = `b${i}`;
+          const isPrimeiro = i === 0;
+          const isUltimoVisivel = semFuturo && i === blocos.length - 1;
           return (
             <div
               key={key}
               className={`relative h-full cursor-default hover:brightness-110 transition ${
+                isPrimeiro ? 'rounded-l-lg' : ''
+              } ${isUltimoVisivel ? 'rounded-r-lg' : ''} ${
                 i > 0 ? 'border-l border-slate-900/50' : ''
               } ${
                 isParada ? (b.emAberto ? 'bg-red-600 animate-pulse' : 'bg-red-500/90') : 'bg-emerald-500/90'
@@ -95,7 +104,7 @@ export default function ProductionTimeline({ blocos, inicio, fimProgramado }) {
 
         {futuroSeg > 0 && (
           <div
-            className="relative h-full bg-[repeating-linear-gradient(135deg,rgba(148,163,184,0.08),rgba(148,163,184,0.08)_6px,transparent_6px,transparent_12px)]"
+            className={`relative h-full rounded-r-lg ${blocos.length === 0 ? 'rounded-l-lg' : ''} bg-[repeating-linear-gradient(135deg,rgba(148,163,184,0.08),rgba(148,163,184,0.08)_6px,transparent_6px,transparent_12px)]`}
             style={{ width: `${(futuroSeg / totalSeg) * 100}%` }}
             onMouseEnter={() => setHoverKey('futuro')}
             onMouseLeave={() => setHoverKey((cur) => (cur === 'futuro' ? null : cur))}

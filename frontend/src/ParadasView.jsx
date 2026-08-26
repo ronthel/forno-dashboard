@@ -356,7 +356,7 @@ export default function ParadasView({ onBack, canConfig }) {
   const maiorTotalSeg = pareto?.porMotivo?.length > 0 ? Math.max(...pareto.porMotivo.map((m) => m.totalSeg)) : 0;
 
   return (
-    <div className="h-full w-full bg-slate-900 text-slate-100 p-6 flex flex-col gap-6 overflow-y-auto">
+    <div className="h-full w-full bg-slate-900 text-slate-100 p-6 flex flex-col gap-6 overflow-hidden">
       <div className="flex justify-between items-center border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-xl font-bold text-amber-500 flex items-center gap-2">
@@ -467,13 +467,19 @@ export default function ParadasView({ onBack, canConfig }) {
         </div>
       </div>
 
-      <div>
+      {/* Só esta lista rola — o resto da tela (pendentes, pareto, etc.) fica
+          fixo. flex-1 + min-h-0 é o que deixa esta seção esticar até o
+          espaço que sobrar e, dentro dela, o overflow-auto assume a rolagem
+          (min-h-0 é necessário porque um filho flex, por padrão, nunca
+          encolhe menos que o conteúdo dele — sem isso a tabela empurraria
+          a tela toda pra baixo em vez de rolar sozinha). */}
+      <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Histórico de Hoje</h2>
         </div>
-        <div className="bg-slate-800/90 border border-slate-700 rounded-xl overflow-hidden overflow-x-auto">
+        <div className="bg-slate-800/90 border border-slate-700 rounded-xl flex-1 min-h-0 overflow-auto">
           <table className="w-full text-xs">
-            <thead className="bg-slate-900/80 text-slate-400 uppercase text-[10px]">
+            <thead className="bg-slate-900/95 text-slate-400 uppercase text-[10px] sticky top-0 z-10">
               <tr>
                 <th className="text-left px-3 py-2">Início</th>
                 <th className="text-left px-3 py-2">Duração</th>

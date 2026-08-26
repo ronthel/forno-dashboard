@@ -9,6 +9,7 @@ import ParadasView from './ParadasView';
 import OeeView from './OeeView';
 import ConfigView from './ConfigView';
 import OeeConfigView from './OeeConfigView';
+import RelatorioExecutivoView from './RelatorioExecutivoView';
 import SensorConfigView from './SensorConfigView';
 import UserManagementView from './UserManagementView';
 import ForceChangePasswordView from './ForceChangePasswordView';
@@ -56,7 +57,7 @@ export default function App() {
   const [renameValue, setRenameValue] = useState('');
   const [dashboardError, setDashboardError] = useState('');
   
-  const [timeRange, setTimeRange] = useState('1h');
+  const [timeRange, setTimeRange] = useState('24h');
   const [refreshInterval, setRefreshInterval] = useState(5000);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -498,6 +499,25 @@ export default function App() {
     onLogout: handleLogout,
   };
 
+  if (currentView === 'relatorioExecutivo') {
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <RelatorioExecutivoView onBack={() => setCurrentView('dashboard')} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
+  }
+
   if (currentView === 'paradas') {
     return (
       <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
@@ -733,7 +753,7 @@ export default function App() {
         setDashboardsList((prev) => [...prev, { id: created.id, name: created.name, updatedAt: new Date().toISOString() }]);
         setCharts(Array.isArray(created.charts) ? created.charts : []);
         setRefreshInterval(created.refreshInterval ?? 5000);
-        setTimeRange(created.timeRange || '1h');
+        setTimeRange(created.timeRange || '24h');
         setCurrentDashboardId(created.id);
         localStorage.setItem(`lastDashboardId_${currentUser}`, String(created.id));
         setNewDashboardName('');
@@ -1093,32 +1113,9 @@ export default function App() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-950/40 p-2 rounded border border-slate-800 text-xs">
-          <div className="flex items-center gap-1">
-            <span className="text-slate-400 pr-1 flex items-center gap-1 font-semibold uppercase">
-              <Clock size={13} /> Atalhos:
-            </span>
-            {[
-              { label: '1h', value: '1h' },
-              { label: '8h', value: '8h' },
-              { label: '24h', value: '24h' },
-              { label: '7d', value: '7d' }
-            ].map((btn) => (
-              <button
-                key={btn.value}
-                onClick={() => {
-                  setTimeRange(btn.value);
-                  handleClearCustomDates();
-                }}
-                className={`px-2.5 py-0.5 rounded font-medium transition ${
-                  timeRange === btn.value && !customDates
-                    ? 'bg-amber-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
+          <span className="text-slate-400 flex items-center gap-1 font-semibold uppercase">
+            <Clock size={13} /> Padrão: últimas 24h
+          </span>
 
           <form onSubmit={handleApplyCustomDates} className="flex flex-wrap items-center gap-2">
             <span className="text-slate-400 font-semibold uppercase flex items-center gap-1">

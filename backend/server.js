@@ -1819,13 +1819,71 @@ app.get('/api/oee/tendencia-turno', async (req, res) => {
   }
 });
 
+// Monta os blocos verdes (produzindo) e vermelhos (parado) de uma janela
+// [inicio, fim] qualquer — reaproveitado tanto pela linha do tempo de UM
+// turno (/api/oee/timeline) quanto pela do DIA inteiro
+// (/api/oee/timeline-dia, pro Relatório Executivo). Direto da tabela
+// `paradas` (já mantida pelo detector automático + pela classificação do
+// operador): cada parada vira um bloco vermelho, e o que sobra entre elas
+// (e antes da primeira / depois da última) vira bloco verde.
+async function construirBlocosDeParadas(inicio, fim) {
+  if (inicio.getTime() >= fim.getTime()) return [];
+
+  const paradasRes = await db.query(
+    `SELECT p.iniciado_em, p.finalizado_em, m.nome AS motivo_nome, m.tipo AS motivo_tipo
+     FROM paradas p
+     LEFT JOIN motivos_parada m ON m.id = p.motivo_id
+     WHERE p.iniciado_em < $2
+       AND (p.finalizado_em IS NULL OR p.finalizado_em > $1)
+     ORDER BY p.iniciado_em ASC`,
+    [inicio.toISOString(), fim.toISOString()]
+  );
+
+  const blocos = [];
+  let cursor = inicio;
+  for (const p of paradasRes.rows) {
+    const paradaInicio = new Date(Math.max(new Date(p.iniciado_em).getTime(), inicio.getTime()));
+    const paradaFimBruta = p.finalizado_em ? new Date(p.finalizado_em) : fim;
+    const paradaFim = new Date(Math.min(paradaFimBruta.getTime(), fim.getTime()));
+    if (paradaFim.getTime() <= cursor.getTime()) continue; // sobreposição/ordem estranha, pula
+
+    // Bloco verde antes desta parada (o que rodou desde o cursor até ela começar)
+    if (paradaInicio.getTime() > cursor.getTime()) {
+      blocos.push({
+        status: 'rodando',
+        inicio: cursor.toISOString(), fim: paradaInicio.toISOString(),
+        duracaoSeg: Math.round((paradaInicio.getTime() - cursor.getTime()) / 1000)
+      });
+    }
+
+    // Bloco vermelho da própria parada
+    blocos.push({
+      status: 'parada',
+      inicio: paradaInicio.toISOString(), fim: paradaFim.toISOString(),
+      duracaoSeg: Math.round((paradaFim.getTime() - paradaInicio.getTime()) / 1000),
+      motivo: p.motivo_nome || null,
+      motivoTipo: p.motivo_tipo || null,
+      emAberto: !p.finalizado_em
+    });
+
+    cursor = paradaFim;
+  }
+
+  // Bloco verde final, do fim da última parada até o fim da janela
+  if (fim.getTime() > cursor.getTime()) {
+    blocos.push({
+      status: 'rodando',
+      inicio: cursor.toISOString(), fim: fim.toISOString(),
+      duracaoSeg: Math.round((fim.getTime() - cursor.getTime()) / 1000)
+    });
+  }
+
+  return blocos;
+}
+
 // Linha do tempo visual do turno: blocos verdes (produzindo) e vermelhos
 // (parado), do início até "agora" (ou até o fim programado, se o turno já
-// terminou) — pra tela de OEE, junto do gráfico de tendência. Reaproveita
-// direto a tabela `paradas` (já mantida pelo detector automático + pela
-// classificação do operador): cada parada vira um bloco vermelho, e o que
-// sobra entre elas (e antes da primeira / depois da última) vira bloco
-// verde — não precisa reprocessar a tag booleana de novo.
+// terminou) — pra tela de OEE, junto do gráfico de tendência.
 app.get('/api/oee/timeline', async (req, res) => {
   const turnoKey = req.query.turnoKey;
   if (!turnoKey) return res.status(400).json({ error: 'Informe turnoKey.' });
@@ -1855,54 +1913,7 @@ app.get('/api/oee/timeline', async (req, res) => {
       });
     }
 
-    const paradasRes = await db.query(
-      `SELECT p.iniciado_em, p.finalizado_em, m.nome AS motivo_nome, m.tipo AS motivo_tipo
-       FROM paradas p
-       LEFT JOIN motivos_parada m ON m.id = p.motivo_id
-       WHERE p.iniciado_em < $2
-         AND (p.finalizado_em IS NULL OR p.finalizado_em > $1)
-       ORDER BY p.iniciado_em ASC`,
-      [occ.start.toISOString(), sampleEnd.toISOString()]
-    );
-
-    const blocos = [];
-    let cursor = occ.start;
-    for (const p of paradasRes.rows) {
-      const paradaInicio = new Date(Math.max(new Date(p.iniciado_em).getTime(), occ.start.getTime()));
-      const paradaFimBruta = p.finalizado_em ? new Date(p.finalizado_em) : sampleEnd;
-      const paradaFim = new Date(Math.min(paradaFimBruta.getTime(), sampleEnd.getTime()));
-      if (paradaFim.getTime() <= cursor.getTime()) continue; // sobreposição/ordem estranha, pula
-
-      // Bloco verde antes desta parada (o que rodou desde o cursor até ela começar)
-      if (paradaInicio.getTime() > cursor.getTime()) {
-        blocos.push({
-          status: 'rodando',
-          inicio: cursor.toISOString(), fim: paradaInicio.toISOString(),
-          duracaoSeg: Math.round((paradaInicio.getTime() - cursor.getTime()) / 1000)
-        });
-      }
-
-      // Bloco vermelho da própria parada
-      blocos.push({
-        status: 'parada',
-        inicio: paradaInicio.toISOString(), fim: paradaFim.toISOString(),
-        duracaoSeg: Math.round((paradaFim.getTime() - paradaInicio.getTime()) / 1000),
-        motivo: p.motivo_nome || null,
-        motivoTipo: p.motivo_tipo || null,
-        emAberto: !p.finalizado_em
-      });
-
-      cursor = paradaFim;
-    }
-
-    // Bloco verde final, do fim da última parada até agora/fim do turno
-    if (sampleEnd.getTime() > cursor.getTime()) {
-      blocos.push({
-        status: 'rodando',
-        inicio: cursor.toISOString(), fim: sampleEnd.toISOString(),
-        duracaoSeg: Math.round((sampleEnd.getTime() - cursor.getTime()) / 1000)
-      });
-    }
+    const blocos = await construirBlocosDeParadas(occ.start, sampleEnd);
 
     res.json({
       turnoKey, nome: row.nome,
@@ -1912,6 +1923,143 @@ app.get('/api/oee/timeline', async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar linha do tempo do turno:', err);
     res.status(500).json({ error: 'Erro ao buscar linha do tempo do turno' });
+  }
+});
+
+// Métricas dos 3 turnos configurados pra UM dia específico (referência =
+// qualquer instante dentro daquele dia local) — usado pelo Relatório
+// Executivo (diário e semanal). Sem "zerado_em" de propósito (igual o
+// gráfico de tendência): um relatório de um dia passado nunca deve mudar
+// por causa de um reset feito depois.
+async function metricasTodosOsTurnosNoDia(cfg, turnosRows, configured, referencia) {
+  const turnos = {};
+  for (const row of turnosRows) {
+    const occ = ocorrenciaNoDia(row, referencia, 0);
+    const metrics = configured
+      ? await calcularMetricasTurno(cfg, { ...occ, isAtual: false }, null)
+      : { plannedSeg: occ.plannedSeg, runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0 };
+    turnos[row.turno_key] = { nome: row.nome, metaOee: Number(row.meta_oee), ...metrics };
+  }
+  return turnos;
+}
+
+function formatarDataISO(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Parseia o parâmetro opcional ?data=YYYY-MM-DD do Relatório Executivo —
+// meio-dia local pra nunca cair no dia errado por causa de fuso horário.
+// Sem o parâmetro, usa ontem (o último dia já fechado).
+function parseDataRelatorio(dataStr) {
+  if (!dataStr) return new Date(Date.now() - 86400000);
+  const d = new Date(`${dataStr}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// Relatório Executivo: resumo do dia inteiro (os 3 turnos), pensado pra
+// reunião de resultados — 1 chamada já traz tudo que o Relatório Executivo
+// da tela precisa (o Pareto/MTTR/MTBF do mesmo dia vem à parte, de
+// /api/paradas/pareto?startDate=...&endDate=..., que já suporta período).
+app.get('/api/oee/relatorio-diario', async (req, res) => {
+  try {
+    const dataAlvo = parseDataRelatorio(req.query.data);
+    if (!dataAlvo) return res.status(400).json({ error: 'Data inválida.' });
+    const dataAnteriorAlvo = new Date(dataAlvo.getTime() - 86400000);
+
+    const cfgRes = await db.query('SELECT * FROM oee_config WHERE id = 1');
+    const cfg = cfgRes.rows[0] || {};
+    const configured = !!(cfg.field_tempo_rodando && cfg.field_contagem_total);
+    const velocidadeNominalDoPlc = await influxLatestValue(cfg.field_velocidade_nominal);
+    const velocidadeNominalPpm = velocidadeNominalDoPlc !== null
+      ? Number(velocidadeNominalDoPlc)
+      : (Number(cfg.velocidade_nominal_ppm) || 50);
+
+    const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
+
+    const turnosHoje = await metricasTodosOsTurnosNoDia(cfg, turnosRes.rows, configured, dataAlvo);
+    const turnosOntem = await metricasTodosOsTurnosNoDia(cfg, turnosRes.rows, configured, dataAnteriorAlvo);
+
+    res.json({
+      data: formatarDataISO(dataAlvo),
+      configured,
+      velocidadeNominalPpm,
+      turnos: turnosHoje,
+      turnosDiaAnterior: turnosOntem
+    });
+  } catch (err) {
+    console.error('Erro ao gerar relatório executivo diário:', err);
+    res.status(500).json({ error: 'Erro ao gerar relatório executivo diário' });
+  }
+});
+
+// Tendência semanal: últimos 7 dias terminando na data escolhida (mesma
+// data do Relatório Executivo diário), OEE por turno dia a dia — pra ver se
+// a semana está indo em direção à meta e qual turno precisa de atenção.
+app.get('/api/oee/relatorio-semanal', async (req, res) => {
+  try {
+    const dataFinal = parseDataRelatorio(req.query.data);
+    if (!dataFinal) return res.status(400).json({ error: 'Data inválida.' });
+
+    const cfgRes = await db.query('SELECT * FROM oee_config WHERE id = 1');
+    const cfg = cfgRes.rows[0] || {};
+    const configured = !!(cfg.field_tempo_rodando && cfg.field_contagem_total);
+    const velocidadeNominalDoPlc = await influxLatestValue(cfg.field_velocidade_nominal);
+    const velocidadeNominalPpm = velocidadeNominalDoPlc !== null
+      ? Number(velocidadeNominalDoPlc)
+      : (Number(cfg.velocidade_nominal_ppm) || 50);
+
+    const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
+
+    const dias = [];
+    for (let i = 6; i >= 0; i--) {
+      const referencia = new Date(dataFinal.getTime() - i * 86400000);
+      const turnos = await metricasTodosOsTurnosNoDia(cfg, turnosRes.rows, configured, referencia);
+      const iso = formatarDataISO(referencia);
+      dias.push({
+        data: iso,
+        label: iso.slice(8, 10) + '/' + iso.slice(5, 7),
+        turnos
+      });
+    }
+
+    res.json({ dataFinal: formatarDataISO(dataFinal), configured, velocidadeNominalPpm, dias });
+  } catch (err) {
+    console.error('Erro ao gerar relatório semanal:', err);
+    res.status(500).json({ error: 'Erro ao gerar relatório semanal' });
+  }
+});
+
+// Linha do tempo do DIA INTEIRO (não de um turno específico) — pro
+// Relatório Executivo: mesmos blocos verde/vermelho da tela de OEE, mas
+// cobrindo as 24h do dia escolhido (ou só até agora, se o dia escolhido for
+// hoje — não faz sentido desenhar bloco pra um horário que ainda não
+// aconteceu).
+app.get('/api/oee/timeline-dia', async (req, res) => {
+  try {
+    const dataAlvo = parseDataRelatorio(req.query.data);
+    if (!dataAlvo) return res.status(400).json({ error: 'Data inválida.' });
+
+    const inicio = new Date(dataAlvo);
+    inicio.setHours(0, 0, 0, 0);
+    const fimDoDia = new Date(inicio.getTime() + 86400000);
+    const now = new Date();
+    const fim = fimDoDia.getTime() > now.getTime() ? now : fimDoDia;
+
+    const blocos = await construirBlocosDeParadas(inicio, fim);
+
+    res.json({
+      data: formatarDataISO(dataAlvo),
+      inicio: inicio.toISOString(),
+      fim: fim.toISOString(),
+      fimProgramado: fimDoDia.toISOString(),
+      blocos
+    });
+  } catch (err) {
+    console.error('Erro ao buscar linha do tempo do dia:', err);
+    res.status(500).json({ error: 'Erro ao buscar linha do tempo do dia' });
   }
 });
 

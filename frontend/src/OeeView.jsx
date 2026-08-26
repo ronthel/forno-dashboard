@@ -3,6 +3,7 @@ import { Gauge, Activity, CheckCircle, Clock, Database, TrendingUp, Settings, Ro
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import api, { isOk } from './api';
 import ProductionTimeline from './ProductionTimeline';
+import { calcularOeePonto } from './oeeCalc';
 
 const TURNO_KEYS = ['turnoA', 'turnoB', 'turnoC'];
 
@@ -43,16 +44,6 @@ const ZERO_TURNO = {
   maquinaRodando: null, velocidadeInstantaneaPpm: null,
   elapsedMin: 0, expectedCount: 0, oeeSimplificado: 0
 };
-
-// Mesma fórmula usada pro turno atual (ver mais abaixo), aplicada a um ponto
-// do histórico — mantém os dois cálculos sempre iguais, um só lugar de verdade.
-function calcularOeePonto(ponto, velocidadeNominalPpm) {
-  const availability = ponto.plannedSeg > 0 ? Math.min(100, (ponto.runTimeSec / ponto.plannedSeg) * 100) : 0;
-  const velocidadeReaMediaPpm = ponto.runTimeSec > 0 ? (ponto.totalCount / (ponto.runTimeSec / 60)) : 0;
-  const performance = velocidadeNominalPpm > 0 ? Math.min(100, (velocidadeReaMediaPpm / velocidadeNominalPpm) * 100) : 0;
-  const quality = ponto.totalCount > 0 ? Math.min(100, (ponto.goodCount / ponto.totalCount) * 100) : 100;
-  return Number(((availability * performance * quality) / 10000).toFixed(1));
-}
 
 export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData, canConfig, isAdmin, onRefreshOee, refreshInterval, onRefreshIntervalChange, isMuted, onAlarmChanged }) {
   const [historyData, setHistoryData] = useState([]);
