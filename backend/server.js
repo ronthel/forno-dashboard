@@ -119,6 +119,14 @@ async function initPostgres() {
         meta_oee NUMERIC(5,2) NOT NULL
       );
 
+      -- Ponto de partida do "Zerar" (ver POST /api/oee/reset) — agora POR
+      -- TURNO, não mais um único valor global em oee_config: zerar só afeta
+      -- o turno que estava ativo no momento do reset, os outros dois turnos
+      -- (e o gráfico de tendência, que nunca olha pra esta coluna) continuam
+      -- intactos. TIMESTAMPTZ pelo mesmo motivo do antigo oee_config.zerado_em
+      -- (backend em America/Sao_Paulo, Postgres em UTC).
+      ALTER TABLE turnos_config ADD COLUMN IF NOT EXISTS zerado_em TIMESTAMPTZ;
+
       -- Mapeamento de variáveis do OEE: em vez de nomes de tag fixos no
       -- código, cada papel (tempo rodando, contagem total, contagem de
       -- refugo, status da máquina, tempo de ciclo real) aponta pra uma das
@@ -1151,6 +1159,21 @@ function calcularOcorrencia(row, now) {
   return { start, end: isAtual ? now : end, plannedSeg, isAtual };
 }
 
+// Igual a calcularOcorrencia, mas sem cortar o fim no relógio de agora —
+// usada pro gráfico de tendência DENTRO do turno (ver /api/oee/tendencia-turno),
+// que precisa saber o horário final PROGRAMADO pra desenhar o eixo X inteiro
+// mesmo que o turno ainda não tenha chegado lá.
+function ocorrenciaCompleta(row, now) {
+  const candidatos = [0, -1]
+    .map((diaOffset) => ocorrenciaNoDia(row, now, diaOffset))
+    .filter((c) => c.start.getTime() <= now.getTime());
+  if (candidatos.length === 0) return null;
+  candidatos.sort((a, b) => b.start.getTime() - a.start.getTime());
+  const { start, end, plannedSeg } = candidatos[0];
+  const isAtual = now.getTime() < end.getTime();
+  return { start, endProgramado: end, plannedSeg, isAtual };
+}
+
 // As últimas N ocorrências de um turno (mais recente primeiro) — usada pro
 // histórico real de OEE (ver GET /api/oee/historico), andando um dia de
 // cada vez pra trás até juntar a quantidade pedida.
@@ -1278,7 +1301,6 @@ app.get('/api/oee/metrics', async (req, res) => {
     const velocidadeNominalPpm = velocidadeNominalDoPlc !== null
       ? Number(velocidadeNominalDoPlc)
       : (Number(cfg.velocidade_nominal_ppm) || 50);
-    const zeradoEm = cfg.zerado_em ? new Date(cfg.zerado_em) : null;
     const configured = !!(cfg.field_tempo_rodando && cfg.field_contagem_total);
 
     const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
@@ -1286,37 +1308,96 @@ app.get('/api/oee/metrics', async (req, res) => {
 
     const turnos = {};
     for (const row of turnosRes.rows) {
+      // Ponto de partida do "Zerar" é POR TURNO agora (turnos_config.zerado_em)
+      // — cada turno tem o seu, zerar um não mexe nos outros.
+      const zeradoEm = row.zerado_em ? new Date(row.zerado_em) : null;
       const ocorrencia = calcularOcorrencia(row, now);
       const metrics = configured
         ? await calcularMetricasTurno(cfg, ocorrencia, zeradoEm)
         : { isAtual: ocorrencia?.isAtual || false, plannedSeg: ocorrencia?.plannedSeg || 0,
             runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
             maquinaRodando: null, velocidadeInstantaneaPpm: null };
-      turnos[row.turno_key] = { nome: row.nome, metaOee: Number(row.meta_oee), ...metrics };
+
+      // OEE Acumulado "leitura direta": Peças Boas ÷ (minutos decorridos ×
+      // Velocidade Padrão) — indicador adicional pedido pelo usuário, mais
+      // fácil de explicar pro operador que o A×P×Q do anel (que continua
+      // sendo o cálculo oficial, sem mudança). Diferença de propósito: os
+      // minutos decorridos aqui são CRUS (não descontam parada programada)
+      // — mostra o ritmo real contra o relógio corrido do turno, sem
+      // "perdão" por parada avisada.
+      let elapsedMin = 0, expectedCount = 0, oeeSimplificado = 0;
+      if (configured && ocorrencia) {
+        let effectiveStart = ocorrencia.start;
+        if (zeradoEm && zeradoEm.getTime() > effectiveStart.getTime()) effectiveStart = zeradoEm;
+        const refTime = ocorrencia.isAtual ? now : ocorrencia.end;
+        elapsedMin = Math.max(0, (refTime.getTime() - effectiveStart.getTime()) / 60000);
+        expectedCount = elapsedMin * velocidadeNominalPpm;
+        oeeSimplificado = expectedCount > 0 ? Math.min(100, (metrics.goodCount / expectedCount) * 100) : 0;
+      }
+
+      turnos[row.turno_key] = {
+        nome: row.nome, metaOee: Number(row.meta_oee), ...metrics,
+        elapsedMin: Number(elapsedMin.toFixed(1)),
+        expectedCount: Math.round(expectedCount),
+        oeeSimplificado: Number(oeeSimplificado.toFixed(1)),
+        zeradoEm: row.zerado_em || null
+      };
     }
 
-    res.json({ configured, velocidadeNominalPpm, turnos, zeradoEm: cfg.zerado_em || null });
+    const statusMaquina = await statusAtualMaquina(cfg);
+
+    res.json({ configured, velocidadeNominalPpm, turnos, statusMaquina });
   } catch (err) {
     console.error('[Erro OEE Metrics]:', err.message);
-    res.json({ configured: false, velocidadeNominalPpm: 50, turnos: {}, zeradoEm: null });
+    res.json({ configured: false, velocidadeNominalPpm: 50, turnos: {}, zeradoEm: null, statusMaquina: { rodando: null, desde: null } });
   }
 });
 
-// "Zera" o cálculo do OEE a partir de agora — não mexe nos contadores reais
-// do CLP (esses continuam só crescendo, de propósito), só marca um ponto de
-// partida: nenhuma métrica volta a olhar pra antes desse instante.
-app.post('/api/oee/reset', requireRole(['supervisor', 'administrador']), async (req, res) => {
+// Estado atual da máquina (ligada/parada) e desde quando — usado pro card de
+// status na tela de OEE. "Desde quando" vem do próprio histórico de paradas:
+// se está parada agora, desde o início da parada ainda aberta; se está
+// rodando, desde o fim da última parada fechada (ou null se nunca parou
+// desde que o detector começou a observar).
+async function statusAtualMaquina(cfg) {
+  if (!cfg.field_maquina_rodando) return { rodando: null, desde: null };
+  const rodando = await influxLatestBoolValue(cfg.field_maquina_rodando);
+  if (rodando === null) return { rodando: null, desde: null };
+
+  if (rodando) {
+    const r = await db.query('SELECT finalizado_em FROM paradas WHERE finalizado_em IS NOT NULL ORDER BY finalizado_em DESC LIMIT 1');
+    return { rodando: true, desde: r.rows[0]?.finalizado_em || null };
+  }
+  const r = await db.query('SELECT iniciado_em FROM paradas WHERE finalizado_em IS NULL ORDER BY iniciado_em DESC LIMIT 1');
+  return { rodando: false, desde: r.rows[0]?.iniciado_em || null };
+}
+
+// "Zera" o cálculo do OEE do turno ATUAL a partir de agora — restrito a
+// administrador (ação sensível: mexe direto no painel que a gestão usa pra
+// cobrar meta). Não mexe nos contadores reais do CLP (esses continuam só
+// crescendo, de propósito) nem nos outros dois turnos, cada um com seu
+// próprio ponto de partida (turnos_config.zerado_em) — e não afeta em nada
+// o gráfico de tendência, que nunca olha pra essa coluna (ver
+// GET /api/oee/tendencia-turno), justamente pra nunca "apagar" histórico.
+app.post('/api/oee/reset', requireRole(['administrador']), async (req, res) => {
   try {
+    const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
+    const now = new Date();
+    const turnoAtual = turnosRes.rows.find((row) => calcularOcorrencia(row, now)?.isAtual);
+
+    if (!turnoAtual) {
+      return res.status(400).json({ error: 'Nenhum turno está ativo agora — confira os horários em Configurar → Turnos.' });
+    }
+
     await db.query(
-      `INSERT INTO oee_config (id, velocidade_nominal_ppm, tempo_planejado_seg, zerado_em, updated_at)
-       VALUES (1, 50, 28800, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       ON CONFLICT (id) DO UPDATE SET zerado_em = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`
+      'UPDATE turnos_config SET zerado_em = CURRENT_TIMESTAMP WHERE turno_key = $1',
+      [turnoAtual.turno_key]
     );
     logAudit({
       userId: req.user.id, username: req.user.username, role: req.user.role,
-      action: 'zerou os contadores do OEE', details: {}
+      action: 'zerou os contadores do OEE do turno atual',
+      details: { turnoKey: turnoAtual.turno_key, turnoNome: turnoAtual.nome }
     });
-    res.json({ message: 'Contadores do OEE zerados a partir de agora!' });
+    res.json({ message: `Contadores do ${turnoAtual.nome} zerados a partir de agora!`, turnoKey: turnoAtual.turno_key });
   } catch (err) {
     console.error('Erro ao zerar OEE:', err);
     res.status(500).json({ error: 'Erro ao zerar contadores do OEE' });
@@ -1441,13 +1522,38 @@ app.put('/api/paradas/motivos/:id', requireRole(['supervisor', 'administrador'])
 // status: 'pendentes' (finalizadas mas sem motivo — precisam de ação do
 // operador), 'abertas' (a máquina ainda está parada agora), ou omitido
 // (histórico geral, mais recentes primeiro).
+// startDate/endDate (opcionais, ISO) filtram por iniciado_em — usados tanto
+// pela tela (que por padrão só pede o dia de hoje, pra não empilhar
+// histórico velho na tela) quanto pelo botão "Gerar Relatório" (período
+// escolhido pelo usuário). Sem esses parâmetros, cai no comportamento antigo
+// (últimas N paradas, sem filtro de data) — usado por status=pendentes e
+// status=abertas, que são filas operacionais, não relatório.
 app.get('/api/paradas', async (req, res) => {
-  const { status, limit } = req.query;
-  const lim = Math.min(200, Number(limit) || 50);
+  const { status, limit, startDate, endDate } = req.query;
+  // Com período explícito (relatório), o limite sobe bastante — é uma
+  // consulta pontual, não a lista "ao vivo" da tela.
+  const lim = Math.min(startDate && endDate ? 5000 : 200, Number(limit) || 50);
   try {
-    let where = '';
-    if (status === 'pendentes') where = 'WHERE p.finalizado_em IS NOT NULL AND p.motivo_id IS NULL';
-    else if (status === 'abertas') where = 'WHERE p.finalizado_em IS NULL';
+    const conditions = [];
+    const params = [];
+    if (status === 'pendentes') conditions.push('p.finalizado_em IS NOT NULL AND p.motivo_id IS NULL');
+    else if (status === 'abertas') conditions.push('p.finalizado_em IS NULL');
+
+    if (startDate) {
+      const d = new Date(startDate);
+      if (Number.isNaN(d.getTime())) return res.status(400).json({ error: 'Data inicial inválida.' });
+      params.push(d.toISOString());
+      conditions.push(`p.iniciado_em >= $${params.length}`);
+    }
+    if (endDate) {
+      const d = new Date(endDate);
+      if (Number.isNaN(d.getTime())) return res.status(400).json({ error: 'Data final inválida.' });
+      params.push(d.toISOString());
+      conditions.push(`p.iniciado_em <= $${params.length}`);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    params.push(lim);
 
     const result = await db.query(
       `SELECT p.id, p.iniciado_em, p.finalizado_em, p.motivo_id, m.nome AS motivo_nome, m.tipo AS motivo_tipo,
@@ -1456,8 +1562,8 @@ app.get('/api/paradas', async (req, res) => {
        LEFT JOIN motivos_parada m ON m.id = p.motivo_id
        ${where}
        ORDER BY p.iniciado_em DESC
-       LIMIT $1`,
-      [lim]
+       LIMIT $${params.length}`,
+      params
     );
     res.json(result.rows);
   } catch (err) {
@@ -1491,8 +1597,27 @@ app.put('/api/paradas/:id/classificar', requireRole(['operador', 'supervisor', '
 // Pareto de paradas: tempo total parado por motivo, num período — ranking
 // de "onde focar melhoria" — mais MTBF/MTTR, calculados só sobre as paradas
 // NÃO programadas (falhas de verdade, não limpeza/setup planejados).
+// startDate/endDate (opcionais, ISO) definem o período explicitamente — usado
+// pelo botão "Gerar Relatório" e, com o dia de hoje, pela tela por padrão.
+// Sem eles, cai no comportamento antigo de janela rolante de N dias (`dias`).
 app.get('/api/paradas/pareto', async (req, res) => {
+  const { startDate, endDate } = req.query;
   const dias = Math.min(365, Math.max(1, Number(req.query.dias) || 30));
+
+  let desdeISO, ateISO;
+  if (startDate && endDate) {
+    const inicio = new Date(startDate);
+    const fim = new Date(endDate);
+    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) {
+      return res.status(400).json({ error: 'Data inicial ou final inválida.' });
+    }
+    desdeISO = inicio.toISOString();
+    ateISO = fim.toISOString();
+  } else {
+    desdeISO = new Date(Date.now() - dias * 86400000).toISOString();
+    ateISO = new Date().toISOString();
+  }
+
   try {
     const porMotivo = await db.query(
       `SELECT m.id AS motivo_id, m.nome, m.tipo,
@@ -1501,10 +1626,10 @@ app.get('/api/paradas/pareto', async (req, res) => {
        FROM paradas p
        JOIN motivos_parada m ON m.id = p.motivo_id
        WHERE p.finalizado_em IS NOT NULL
-         AND p.iniciado_em >= now() - ($1 || ' days')::interval
+         AND p.iniciado_em >= $1 AND p.iniciado_em <= $2
        GROUP BY m.id, m.nome, m.tipo
        ORDER BY total_seg DESC`,
-      [dias]
+      [desdeISO, ateISO]
     );
 
     // MTTR: duração média das paradas não programadas (tempo médio de reparo).
@@ -1517,9 +1642,9 @@ app.get('/api/paradas/pareto', async (req, res) => {
        JOIN motivos_parada m ON m.id = p.motivo_id
        WHERE m.tipo = 'nao_programada'
          AND p.finalizado_em IS NOT NULL
-         AND p.iniciado_em >= now() - ($1 || ' days')::interval
+         AND p.iniciado_em >= $1 AND p.iniciado_em <= $2
        ORDER BY p.iniciado_em ASC`,
-      [dias]
+      [desdeISO, ateISO]
     );
 
     const falhas = naoProgramadas.rows;
@@ -1598,6 +1723,195 @@ app.get('/api/oee/historico', async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar histórico do OEE:', err);
     res.status(500).json({ error: 'Erro ao buscar histórico do OEE' });
+  }
+});
+
+// Tendência DENTRO do turno selecionado: um ponto de OEE GLOBAL a cada 15
+// minutos, cada um calculado só com o que aconteceu NAQUELE intervalo (não
+// acumulado desde o início do turno) — mostra pro operador como o
+// desempenho variou janela a janela ao longo do próprio turno (diferente do
+// /api/oee/historico, que compara um turno inteiro com os de outros dias).
+// O eixo X sempre cobre o turno inteiro; se o turno ainda está rolando, os
+// pontos só existem até agora — o resto do eixo fica em branco, mostrando
+// visualmente quanto turno ainda falta.
+app.get('/api/oee/tendencia-turno', async (req, res) => {
+  const turnoKey = req.query.turnoKey;
+  if (!turnoKey) return res.status(400).json({ error: 'Informe turnoKey.' });
+  try {
+    const turnoRes = await db.query('SELECT * FROM turnos_config WHERE turno_key = $1', [turnoKey]);
+    if (turnoRes.rows.length === 0) {
+      return res.json({ turnoKey, nome: null, metaOee: 80, velocidadeNominalPpm: 50, inicio: null, fimProgramado: null, isAtual: false, pontos: [] });
+    }
+    const row = turnoRes.rows[0];
+
+    const cfgRes = await db.query('SELECT * FROM oee_config WHERE id = 1');
+    const cfg = cfgRes.rows[0] || {};
+    const configured = !!(cfg.field_tempo_rodando && cfg.field_contagem_total);
+
+    const velocidadeNominalDoPlc = await influxLatestValue(cfg.field_velocidade_nominal);
+    const velocidadeNominalPpm = velocidadeNominalDoPlc !== null
+      ? Number(velocidadeNominalDoPlc)
+      : (Number(cfg.velocidade_nominal_ppm) || 50);
+
+    const now = new Date();
+    const occ = ocorrenciaCompleta(row, now);
+
+    if (!occ || !configured) {
+      const fallback = ocorrenciaNoDia(row, now, 0);
+      return res.json({
+        turnoKey, nome: row.nome, metaOee: Number(row.meta_oee), velocidadeNominalPpm,
+        inicio: fallback.start.toISOString(), fimProgramado: fallback.end.toISOString(),
+        isAtual: false, pontos: []
+      });
+    }
+
+    const sampleEnd = occ.isAtual ? now : occ.endProgramado;
+
+    // Ponto a cada 15 minutos fixos — cada um mostra o OEE GLOBAL só
+    // daquele intervalo (não acumulado desde o início do turno), pra dar
+    // pro operador uma leitura de "como estive nos últimos 15 minutos",
+    // janela a janela. Só entram janelas COMPLETAS: se "agora" cai no meio
+    // de uma janela de 15min, ela ainda não aparece — um pedaço de janela
+    // (ex: só 1 minuto) dá uma leitura extremamente instável e incompatível
+    // com o resto do gráfico (qualquer produção contínua nesse pedacinho
+    // dispara o OEE lá em cima, mesmo que o turno como um todo esteja indo
+    // mal), então é melhor esperar ela fechar do que mostrar um valor
+    // enganoso.
+    const INTERVALO_MIN = 15;
+    const boundaries = [occ.start];
+    for (let t = occ.start.getTime() + INTERVALO_MIN * 60000; t <= sampleEnd.getTime(); t += INTERVALO_MIN * 60000) {
+      boundaries.push(new Date(t));
+    }
+
+    const pontos = [];
+    for (let i = 1; i < boundaries.length; i++) {
+      const janelaInicio = boundaries[i - 1];
+      const janelaFim = boundaries[i];
+      const elapsedSeg = Math.max(0, (janelaFim.getTime() - janelaInicio.getTime()) / 1000);
+      // zeradoEm sempre null aqui, de propósito: o gráfico de tendência
+      // nunca deve "apagar" pontos passados por causa de um "Zerar" — ele
+      // sempre mostra o que realmente aconteceu em cada janela de 15min,
+      // independente de qualquer reset feito no turno depois.
+      const metrics = await calcularMetricasTurno(
+        cfg,
+        { start: janelaInicio, end: janelaFim, plannedSeg: elapsedSeg, isAtual: false },
+        null
+      );
+      pontos.push({
+        tempoMs: janelaFim.getTime(),
+        label: janelaFim.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        plannedSeg: metrics.plannedSeg,
+        runTimeSec: metrics.runTimeSec,
+        totalCount: metrics.totalCount,
+        refugoCount: metrics.refugoCount,
+        goodCount: metrics.goodCount
+      });
+    }
+
+    res.json({
+      turnoKey, nome: row.nome, metaOee: Number(row.meta_oee), velocidadeNominalPpm,
+      inicio: occ.start.toISOString(), fimProgramado: occ.endProgramado.toISOString(),
+      isAtual: occ.isAtual, pontos
+    });
+  } catch (err) {
+    console.error('Erro ao buscar tendência do turno:', err);
+    res.status(500).json({ error: 'Erro ao buscar tendência do turno' });
+  }
+});
+
+// Linha do tempo visual do turno: blocos verdes (produzindo) e vermelhos
+// (parado), do início até "agora" (ou até o fim programado, se o turno já
+// terminou) — pra tela de OEE, junto do gráfico de tendência. Reaproveita
+// direto a tabela `paradas` (já mantida pelo detector automático + pela
+// classificação do operador): cada parada vira um bloco vermelho, e o que
+// sobra entre elas (e antes da primeira / depois da última) vira bloco
+// verde — não precisa reprocessar a tag booleana de novo.
+app.get('/api/oee/timeline', async (req, res) => {
+  const turnoKey = req.query.turnoKey;
+  if (!turnoKey) return res.status(400).json({ error: 'Informe turnoKey.' });
+  try {
+    const turnoRes = await db.query('SELECT * FROM turnos_config WHERE turno_key = $1', [turnoKey]);
+    if (turnoRes.rows.length === 0) {
+      return res.json({ turnoKey, nome: null, inicio: null, fim: null, fimProgramado: null, isAtual: false, blocos: [] });
+    }
+    const row = turnoRes.rows[0];
+    const now = new Date();
+    const occ = ocorrenciaCompleta(row, now);
+
+    if (!occ) {
+      const fallback = ocorrenciaNoDia(row, now, 0);
+      return res.json({
+        turnoKey, nome: row.nome,
+        inicio: fallback.start.toISOString(), fim: fallback.start.toISOString(), fimProgramado: fallback.end.toISOString(),
+        isAtual: false, blocos: []
+      });
+    }
+
+    const sampleEnd = occ.isAtual ? now : occ.endProgramado;
+    if (occ.start.getTime() >= sampleEnd.getTime()) {
+      return res.json({
+        turnoKey, nome: row.nome, inicio: occ.start.toISOString(), fim: sampleEnd.toISOString(),
+        fimProgramado: occ.endProgramado.toISOString(), isAtual: occ.isAtual, blocos: []
+      });
+    }
+
+    const paradasRes = await db.query(
+      `SELECT p.iniciado_em, p.finalizado_em, m.nome AS motivo_nome, m.tipo AS motivo_tipo
+       FROM paradas p
+       LEFT JOIN motivos_parada m ON m.id = p.motivo_id
+       WHERE p.iniciado_em < $2
+         AND (p.finalizado_em IS NULL OR p.finalizado_em > $1)
+       ORDER BY p.iniciado_em ASC`,
+      [occ.start.toISOString(), sampleEnd.toISOString()]
+    );
+
+    const blocos = [];
+    let cursor = occ.start;
+    for (const p of paradasRes.rows) {
+      const paradaInicio = new Date(Math.max(new Date(p.iniciado_em).getTime(), occ.start.getTime()));
+      const paradaFimBruta = p.finalizado_em ? new Date(p.finalizado_em) : sampleEnd;
+      const paradaFim = new Date(Math.min(paradaFimBruta.getTime(), sampleEnd.getTime()));
+      if (paradaFim.getTime() <= cursor.getTime()) continue; // sobreposição/ordem estranha, pula
+
+      // Bloco verde antes desta parada (o que rodou desde o cursor até ela começar)
+      if (paradaInicio.getTime() > cursor.getTime()) {
+        blocos.push({
+          status: 'rodando',
+          inicio: cursor.toISOString(), fim: paradaInicio.toISOString(),
+          duracaoSeg: Math.round((paradaInicio.getTime() - cursor.getTime()) / 1000)
+        });
+      }
+
+      // Bloco vermelho da própria parada
+      blocos.push({
+        status: 'parada',
+        inicio: paradaInicio.toISOString(), fim: paradaFim.toISOString(),
+        duracaoSeg: Math.round((paradaFim.getTime() - paradaInicio.getTime()) / 1000),
+        motivo: p.motivo_nome || null,
+        motivoTipo: p.motivo_tipo || null,
+        emAberto: !p.finalizado_em
+      });
+
+      cursor = paradaFim;
+    }
+
+    // Bloco verde final, do fim da última parada até agora/fim do turno
+    if (sampleEnd.getTime() > cursor.getTime()) {
+      blocos.push({
+        status: 'rodando',
+        inicio: cursor.toISOString(), fim: sampleEnd.toISOString(),
+        duracaoSeg: Math.round((sampleEnd.getTime() - cursor.getTime()) / 1000)
+      });
+    }
+
+    res.json({
+      turnoKey, nome: row.nome,
+      inicio: occ.start.toISOString(), fim: sampleEnd.toISOString(), fimProgramado: occ.endProgramado.toISOString(),
+      isAtual: occ.isAtual, blocos
+    });
+  } catch (err) {
+    console.error('Erro ao buscar linha do tempo do turno:', err);
+    res.status(500).json({ error: 'Erro ao buscar linha do tempo do turno' });
   }
 });
 

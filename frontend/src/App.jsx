@@ -87,7 +87,7 @@ export default function App() {
     configured: false,
     velocidadeNominalPpm: 50,
     turnos: {},
-    zeradoEm: null
+    statusMaquina: { rodando: null, desde: null }
   });
   // Intervalo de atualização automática da tela de OEE — separado do
   // refreshInterval do dashboard principal, porque faz sentido acompanhar o
@@ -220,7 +220,7 @@ export default function App() {
           configured: !!data.configured,
           velocidadeNominalPpm: data.velocidadeNominalPpm || 50,
           turnos: data.turnos || {},
-          zeradoEm: data.zeradoEm || null
+          statusMaquina: data.statusMaquina || { rodando: null, desde: null }
         });
       }
     } catch (err) {
@@ -526,9 +526,12 @@ export default function App() {
             onOpenConfig={() => setCurrentView('configTurnos')}
             oeeData={oeeMetricsData}
             canConfig={canConfig}
+            isAdmin={canManageUsers}
             onRefreshOee={fetchOeeMetricsFromDb}
             refreshInterval={oeeRefreshInterval}
             onRefreshIntervalChange={setOeeRefreshInterval}
+            isMuted={isMuted}
+            onAlarmChanged={fetchActiveAlarms}
           />
         </div>
         <UserSwitchModal

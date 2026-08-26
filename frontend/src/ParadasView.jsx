@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Clock, CheckCircle2, RefreshCw, Download, Settings, BarChart3, Plus, Check, X } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle2, RefreshCw, Download, Settings, BarChart3, Plus, Check, X, FileText } from 'lucide-react';
 import api, { isOk } from './api';
 
 const ABERTA_ALERTA_MIN = 15; // parada aberta (sem terminar) há mais tempo que isso vira alerta vermelho
@@ -192,7 +192,7 @@ function MotivosManager({ motivos, onChanged, onClose }) {
   );
 }
 
-function exportarCsv(historico) {
+function exportarCsv(historico, sufixoArquivo) {
   if (historico.length === 0) return;
   const header = ['Início', 'Fim', 'Duração (s)', 'Motivo', 'Tipo', 'Justificativa', 'Classificado por'].join(';');
   const linhas = historico.map((p) => [
@@ -209,11 +209,99 @@ function exportarCsv(historico) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `paradas_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `paradas_${sufixoArquivo || new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+// Modal do botão "Gerar Relatório" — período livre escolhido pelo usuário,
+// baixa direto em CSV. Fica fora da tela principal de propósito: não
+// acumula outra tabela/gráfico permanente ali, só aparece quando pedido.
+function RelatorioModal({ onClose }) {
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const [dataInicial, setDataInicial] = useState(hojeStr);
+  const [dataFinal, setDataFinal] = useState(hojeStr);
+  const [gerando, setGerando] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleGerar = async () => {
+    if (!dataInicial || !dataFinal) { setError('Selecione as duas datas.'); return; }
+    if (dataInicial > dataFinal) { setError('Data inicial não pode ser depois da data final.'); return; }
+    setGerando(true);
+    setError('');
+    try {
+      const res = await api.get('/api/paradas', {
+        params: { startDate: `${dataInicial}T00:00:00`, endDate: `${dataFinal}T23:59:59`, limit: 5000 }
+      });
+      if (isOk(res)) {
+        if (res.data.length === 0) {
+          setError('Nenhuma parada encontrada nesse período.');
+        } else {
+          const sufixo = dataInicial === dataFinal ? dataInicial : `${dataInicial}_a_${dataFinal}`;
+          exportarCsv(res.data, sufixo);
+          onClose();
+        }
+      } else {
+        setError(res.data?.error || 'Erro ao gerar relatório.');
+      }
+    } catch (err) {
+      setError('Erro ao gerar relatório.');
+    } finally {
+      setGerando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-2xl w-full max-w-sm flex flex-col gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+            <FileText size={16} className="text-amber-400" /> Gerar Relatório de Paradas
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={16} /></button>
+        </div>
+        <p className="text-slate-400 text-xs">Escolha o período — sai em CSV, pronto pra abrir no Excel.</p>
+
+        {error && <p className="text-red-300 text-xs">{error}</p>}
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1 text-xs text-slate-400">
+            De
+            <input
+              type="date"
+              value={dataInicial}
+              max={hojeStr}
+              onChange={(e) => setDataInicial(e.target.value)}
+              className="bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-amber-500"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-slate-400">
+            Até
+            <input
+              type="date"
+              value={dataFinal}
+              max={hojeStr}
+              onChange={(e) => setDataFinal(e.target.value)}
+              className="bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-slate-100 focus:outline-none focus:border-amber-500"
+            />
+          </label>
+        </div>
+
+        <button
+          onClick={handleGerar}
+          disabled={gerando}
+          className="flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition disabled:opacity-50 mt-1"
+        >
+          <Download size={14} /> {gerando ? 'Gerando…' : 'Baixar CSV'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function ParadasView({ onBack, canConfig }) {
@@ -224,15 +312,22 @@ export default function ParadasView({ onBack, canConfig }) {
   const [pareto, setPareto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showMotivos, setShowMotivos] = useState(false);
+  const [showRelatorio, setShowRelatorio] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
+      // Tela mostra só o dia de hoje, de propósito — pra não empilhar
+      // histórico velho na tela. Outros períodos: botão "Gerar Relatório".
+      const inicioHoje = new Date();
+      inicioHoje.setHours(0, 0, 0, 0);
+      const hojeParams = { startDate: inicioHoje.toISOString(), endDate: new Date().toISOString() };
+
       const [motivosRes, pendentesRes, abertasRes, historicoRes, paretoRes] = await Promise.all([
         api.get('/api/paradas/motivos'),
         api.get('/api/paradas', { params: { status: 'pendentes' } }),
         api.get('/api/paradas', { params: { status: 'abertas' } }),
-        api.get('/api/paradas', { params: { limit: 50 } }),
-        api.get('/api/paradas/pareto', { params: { dias: 30 } }),
+        api.get('/api/paradas', { params: { ...hojeParams, limit: 200 } }),
+        api.get('/api/paradas/pareto', { params: hojeParams }),
       ]);
       if (isOk(motivosRes)) setMotivos(motivosRes.data);
       if (isOk(pendentesRes)) setPendentes(pendentesRes.data);
@@ -281,6 +376,13 @@ export default function ParadasView({ onBack, canConfig }) {
             </button>
           )}
           <button
+            onClick={() => setShowRelatorio(true)}
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
+            title="Consultar outro período (não só hoje)"
+          >
+            <FileText size={14} /> Gerar Relatório
+          </button>
+          <button
             onClick={carregar}
             className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow"
           >
@@ -288,6 +390,8 @@ export default function ParadasView({ onBack, canConfig }) {
           </button>
         </div>
       </div>
+
+      {showRelatorio && <RelatorioModal onClose={() => setShowRelatorio(false)} />}
 
       {abertaAlerta && (
         <div className="bg-red-950/50 border border-red-700 text-red-200 text-xs rounded-lg px-4 py-2.5 flex items-center gap-2 animate-pulse">
@@ -323,10 +427,10 @@ export default function ParadasView({ onBack, canConfig }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-slate-800/90 border border-slate-700 rounded-xl p-4 shadow-md">
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <BarChart3 size={16} className="text-amber-400" /> Pareto de Paradas (últimos 30 dias)
+            <BarChart3 size={16} className="text-amber-400" /> Pareto de Paradas (hoje)
           </h2>
           {!pareto || pareto.porMotivo.length === 0 ? (
-            <p className="text-slate-500 text-xs">Nenhuma parada classificada nos últimos 30 dias ainda.</p>
+            <p className="text-slate-500 text-xs">Nenhuma parada classificada hoje ainda.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {pareto.porMotivo.map((m) => (
@@ -365,14 +469,7 @@ export default function ParadasView({ onBack, canConfig }) {
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Histórico recente</h2>
-          <button
-            onClick={() => exportarCsv(historico)}
-            disabled={historico.length === 0}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow disabled:opacity-40"
-          >
-            <Download size={14} /> Exportar CSV
-          </button>
+          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Histórico de Hoje</h2>
         </div>
         <div className="bg-slate-800/90 border border-slate-700 rounded-xl overflow-hidden overflow-x-auto">
           <table className="w-full text-xs">
@@ -388,7 +485,7 @@ export default function ParadasView({ onBack, canConfig }) {
             </thead>
             <tbody>
               {historico.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-slate-500 py-6">Nenhuma parada registrada ainda.</td></tr>
+                <tr><td colSpan={6} className="text-center text-slate-500 py-6">Nenhuma parada registrada hoje.</td></tr>
               ) : historico.map((p) => (
                 <tr key={p.id} className="border-t border-slate-700/60">
                   <td className="px-3 py-2 font-mono text-slate-300">{formatHora(p.iniciado_em)}</td>
