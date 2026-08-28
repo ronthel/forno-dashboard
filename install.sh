@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# Instalação/provisionamento do Forno Dashboard + Wtecc Historian.
+# Instalação/provisionamento do Forno Dashboard (visualização/relatórios).
 #
 # Roda UMA VEZ por instalação nova (cliente/linha/máquina), a partir de um
 # clone limpo deste repositório, numa máquina Linux com Docker + Docker
-# Compose já instalados. Gera sozinho todas as senhas/tokens/chaves — só
-# pergunta o que realmente muda de site pra site (IP do CLP, IP desta
-# máquina), porque cada instalação deve ter credenciais PRÓPRIAS (nunca
-# reaproveitar as de outro cliente — ver README para o porquê).
+# Compose já instalados. Gera sozinho as senhas/chaves deste projeto — só
+# pergunta o que realmente muda de site pra site (IP desta máquina, e como
+# chegar no servidor do Wtecc Historian, que pode estar nesta mesma máquina
+# ou em outra).
+#
+# Precisa do Wtecc Historian já instalado e rodando ANTES de rodar este
+# script (é ele quem fornece o InfluxDB e a API de tags) — instale-o
+# primeiro a partir de github.com/ronthel/wtecc-historian, e guarde os
+# valores impressos no final da instalação dele (INFLUX_TOKEN, IP:porta do
+# InfluxDB, IP:porta da API, senha do papel "viewer").
 #
 # Uso:
 #   git clone git@github.com:ronthel/forno-dashboard.git
@@ -16,9 +22,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # Aceita um prefixo de projeto/portas alternativo pra rodar em modo de
-# teste, sem colidir com uma instalação de produção na mesma máquina
-# (usado pelo próprio time interno pra validar o script — não precisa
-# disso numa instalação real).
+# teste, sem colidir com uma instalação de produção na mesma máquina.
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-forno-dashboard}"
 COMPOSE_ARGS=(-p "$COMPOSE_PROJECT_NAME")
 
@@ -31,11 +35,8 @@ docker compose version >/dev/null 2>&1 || fail "Plugin 'docker compose' não enc
 command -v openssl >/dev/null 2>&1 || fail "openssl não encontrado (necessário pra gerar as senhas)."
 
 # Se já existe .env OU containers desse projeto, a instalação precisa
-# começar de um estado REALMENTE limpo — não dá pra "consertar" no meio
-# (ex: o InfluxDB recusa criar um token admin novo se um antigo já existe,
-# e regenerar exige o token antigo em mãos, que podemos não ter se uma
-# tentativa anterior falhou no meio do caminho). Mais simples e mais
-# seguro: apagar tudo (containers + volumes) e recomeçar do zero.
+# começar de um estado REALMENTE limpo — mesma lógica do install.sh do
+# Historian (não dá pra "consertar" no meio de uma tentativa anterior).
 EXISTING="$( { [ -f .env ] && echo sim; docker compose "${COMPOSE_ARGS[@]}" ps -a --format '{{.Name}}' 2>/dev/null; } )"
 if [ -n "$EXISTING" ]; then
   echo "Já existe uma instalação (arquivo .env e/ou containers) para o projeto '$COMPOSE_PROJECT_NAME'."
@@ -46,7 +47,7 @@ if [ -n "$EXISTING" ]; then
   rm -f .env backend/.env frontend/.env
 fi
 
-log "Instalação — Forno Dashboard + Wtecc Historian"
+log "Instalação — Forno Dashboard"
 
 # --- 1. IP desta máquina na rede local -----------------------------------
 DETECTED_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -54,51 +55,34 @@ read -rp "IP desta máquina na rede local [${DETECTED_IP}]: " HOST_LAN_IP
 HOST_LAN_IP="${HOST_LAN_IP:-$DETECTED_IP}"
 [ -n "$HOST_LAN_IP" ] || fail "IP não informado."
 
-# --- 2. Dados do CLP a ser monitorado -------------------------------------
-log "Dados do CLP"
-read -rp "Nome do CLP (ex: Forno01): " PLC_NAME
-[ -n "$PLC_NAME" ] || fail "Nome do CLP é obrigatório."
-read -rp "IP do CLP: " PLC_IP
-[ -n "$PLC_IP" ] || fail "IP do CLP é obrigatório."
+# --- 2. Onde está o servidor do Wtecc Historian ---------------------------
+log "Conexão com o Wtecc Historian (já deve estar instalado e rodando)"
+echo "Pode ser esta mesma máquina (se os dois projetos rodam juntos) ou outro servidor."
+read -rp "IP do servidor do Historian [${HOST_LAN_IP}]: " HISTORIAN_IP
+HISTORIAN_IP="${HISTORIAN_IP:-$HOST_LAN_IP}"
+[ -n "$HISTORIAN_IP" ] || fail "IP do servidor do Historian é obrigatório."
 
-echo "Fabricante do CLP:"
-echo "  1) Rockwell (CompactLogix / ControlLogix)"
-echo "  2) Siemens (S7-1500 / S7-1200)"
-echo "  3) Schneider (M580 / Modbus TCP)"
-read -rp "Escolha [1]: " PLC_CHOICE
-case "${PLC_CHOICE:-1}" in
-  2)
-    PLC_BRAND="siemens"; PLC_MODEL="S7-1500"; PLC_DRIVER="siemens_s7"
-    read -rp "Rack do CLP [0]: " PLC_RACK; PLC_RACK="${PLC_RACK:-0}"
-    read -rp "Slot do CLP [1]: " PLC_SLOT; PLC_SLOT="${PLC_SLOT:-1}"
-    ;;
-  3)
-    PLC_BRAND="schneider"; PLC_MODEL="M580"; PLC_DRIVER="schneider_modbus"
-    PLC_RACK="NULL"; PLC_SLOT="NULL"
-    ;;
-  *)
-    PLC_BRAND="rockwell"; PLC_MODEL="CompactLogix"; PLC_DRIVER="rockwell_logix"
-    read -rp "Slot do CLP [0]: " PLC_SLOT; PLC_SLOT="${PLC_SLOT:-0}"
-    PLC_RACK="NULL"
-    ;;
-esac
-if [ "${PLC_SLOT:-NULL}" = "NULL" ]; then PLC_SLOT_SQL="NULL"; else PLC_SLOT_SQL="$PLC_SLOT"; fi
-if [ "${PLC_RACK:-NULL}" = "NULL" ]; then PLC_RACK_SQL="NULL"; else PLC_RACK_SQL="$PLC_RACK"; fi
+read -rp "Porta do InfluxDB no servidor do Historian [8181]: " HISTORIAN_INFLUX_PORT
+HISTORIAN_INFLUX_PORT="${HISTORIAN_INFLUX_PORT:-8181}"
 
-# --- 3. Gera todas as senhas/tokens/chaves --------------------------------
+read -rp "Porta da API do Historian [8000]: " HISTORIAN_API_PORT
+HISTORIAN_API_PORT="${HISTORIAN_API_PORT:-8000}"
+
+echo "Cole os valores impressos no final da instalação do Historian:"
+read -rp "INFLUX_TOKEN: " INFLUX_TOKEN
+[ -n "$INFLUX_TOKEN" ] || fail "INFLUX_TOKEN é obrigatório."
+read -rsp "Senha do papel 'viewer' do Historian: " HISTORIAN_VIEWER_PASSWORD
+echo
+[ -n "$HISTORIAN_VIEWER_PASSWORD" ] || fail "Senha do papel 'viewer' é obrigatória."
+
+# --- 3. Gera as senhas/chaves deste projeto -------------------------------
 log "Gerando credenciais novas (nenhuma reaproveitada de outra instalação)"
 gen_hex()    { openssl rand -hex "$1"; }
-gen_pass()   { openssl rand -base64 18 | tr -d '=+/\n'; }
 
 POSTGRES_USER="forno_app"
 POSTGRES_DB="forno_db"
 POSTGRES_PASSWORD="$(gen_hex 16)"
-HISTORIAN_DB_PASSWORD="$(gen_hex 16)"
-HISTORIAN_JWT_SECRET="$(gen_hex 32)"
 BACKEND_JWT_SECRET="$(gen_hex 32)"
-HISTORIAN_ADMIN_PASSWORD="$(gen_pass)"
-HISTORIAN_OPERATOR_PASSWORD="$(gen_pass)"
-HISTORIAN_VIEWER_PASSWORD="$(gen_pass)"
 
 # --- 4. Escreve os .env ---------------------------------------------------
 log "Gravando arquivos .env"
@@ -107,10 +91,7 @@ cat > .env <<EOF
 POSTGRES_USER=$POSTGRES_USER
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 POSTGRES_DB=$POSTGRES_DB
-HISTORIAN_DB_PASSWORD=$HISTORIAN_DB_PASSWORD
-HISTORIAN_JWT_SECRET=$HISTORIAN_JWT_SECRET
 HOST_LAN_IP=$HOST_LAN_IP
-INFLUX_TOKEN=
 EOF
 
 mkdir -p backend frontend
@@ -122,10 +103,10 @@ POSTGRES_HOST=postgres
 POSTGRES_DB=$POSTGRES_DB
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 POSTGRES_PORT=5432
-INFLUX_URL=http://influxdb:8181
-INFLUX_TOKEN=
+INFLUX_URL=http://$HISTORIAN_IP:$HISTORIAN_INFLUX_PORT
+INFLUX_TOKEN=$INFLUX_TOKEN
 INFLUX_BUCKET=forno
-HISTORIAN_API_URL=http://historian-api:8000
+HISTORIAN_API_URL=http://$HISTORIAN_IP:$HISTORIAN_API_PORT
 HISTORIAN_VIEWER_PASSWORD=$HISTORIAN_VIEWER_PASSWORD
 EOF
 
@@ -133,97 +114,39 @@ cat > frontend/.env <<EOF
 VITE_API_URL=http://$HOST_LAN_IP:5000
 EOF
 
-# --- 5. Gera o seed do Historian com os dados do CLP informados -----------
-# Sem tags pré-cadastradas de propósito — cada CLP tem tags totalmente
-# diferentes, o operador cadastra pela tela do Historian depois de subir.
-cat > historian/seed-data.sql <<EOF
-INSERT INTO plcs (name, brand, model, driver, ip_address, slot, rack, poll_interval_ms, enabled)
-VALUES ('$PLC_NAME', '$PLC_BRAND', '$PLC_MODEL', '$PLC_DRIVER', '$PLC_IP', $PLC_SLOT_SQL, $PLC_RACK_SQL, 5000, true)
-ON CONFLICT (name) DO NOTHING;
-EOF
+# --- 5. Sobe o Postgres e aguarda ficar saudável --------------------------
+log "Subindo Postgres..."
+docker compose "${COMPOSE_ARGS[@]}" up -d postgres
 
-# --- 6. Sobe a infraestrutura base (bancos) primeiro ----------------------
-log "Subindo Postgres, TimescaleDB e InfluxDB..."
-docker compose "${COMPOSE_ARGS[@]}" up -d postgres historian-db influxdb
-
-log "Aguardando os bancos ficarem saudáveis..."
-for svc in postgres historian-db; do
-  for i in $(seq 1 30); do
-    status="$(docker inspect -f '{{.State.Health.Status}}' "${COMPOSE_PROJECT_NAME}-${svc}-1" 2>/dev/null || echo starting)"
-    [ "$status" = "healthy" ] && break
-    sleep 2
-  done
-done
-
-INFLUX_CONTAINER="${COMPOSE_PROJECT_NAME}-influxdb-1"
-INFLUX_VOLUME="${COMPOSE_PROJECT_NAME}_influxdb_data"
-
-log "Ajustando permissão do volume do InfluxDB (necessário na primeira vez)..."
-docker run --rm -v "${INFLUX_VOLUME}:/data" alpine chown -R 1500:1500 /data
-docker compose "${COMPOSE_ARGS[@]}" restart influxdb
-
-# --- 7. Cria o token admin do InfluxDB + banco "forno" --------------------
-# Em vez de um healthcheck separado (curl pode nem existir dentro dessa
-# imagem), tenta criar o token direto e repete até o servidor responder —
-# testa exatamente o que precisamos, sem depender de mais nada.
-log "Criando token de administração do InfluxDB (tenta até o servidor responder)..."
-INFLUX_TOKEN=""
+log "Aguardando o Postgres ficar saudável..."
 for i in $(seq 1 30); do
-  INFLUX_TOKEN_OUTPUT="$(docker exec "$INFLUX_CONTAINER" influxdb3 create token --admin 2>&1)" && true
-  INFLUX_TOKEN="$(echo "$INFLUX_TOKEN_OUTPUT" | grep -oE 'apiv3_[A-Za-z0-9_-]+' | head -1)"
-  [ -n "$INFLUX_TOKEN" ] && break
+  status="$(docker inspect -f '{{.State.Health.Status}}' "${COMPOSE_PROJECT_NAME}-postgres-1" 2>/dev/null || echo starting)"
+  [ "$status" = "healthy" ] && break
   sleep 2
 done
-[ -n "$INFLUX_TOKEN" ] || fail "Não consegui criar o token do InfluxDB depois de várias tentativas. Última saída: $INFLUX_TOKEN_OUTPUT"
 
-docker exec "$INFLUX_CONTAINER" influxdb3 create database forno --token "$INFLUX_TOKEN"
-
-# grava o token nos .env (sed com delimitador # pra não colidir com o token)
-sed -i "s#^INFLUX_TOKEN=.*#INFLUX_TOKEN=$INFLUX_TOKEN#" .env
-sed -i "s#^INFLUX_TOKEN=.*#INFLUX_TOKEN=$INFLUX_TOKEN#" backend/.env
-
-# --- 8. Sobe o resto dos serviços ------------------------------------------
-log "Construindo e subindo o restante dos serviços (backend, frontend, Historian)..."
+# --- 6. Sobe backend e frontend --------------------------------------------
+log "Construindo e subindo backend e frontend..."
 docker compose "${COMPOSE_ARGS[@]}" up -d --build
 
-log "Aguardando a API do Historian ficar pronta..."
-HISTORIAN_API_CONTAINER="${COMPOSE_PROJECT_NAME}-historian-api-1"
-for i in $(seq 1 30); do
-  docker exec "$HISTORIAN_API_CONTAINER" python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" >/dev/null 2>&1 && break
-  sleep 2
-done
+# --- 7. Testa a conexão com o Historian ------------------------------------
+log "Testando conexão com o Historian ($HISTORIAN_IP)..."
+BACKEND_CONTAINER="${COMPOSE_PROJECT_NAME}-backend-1"
+sleep 3
+if docker exec "$BACKEND_CONTAINER" node -e "fetch('http://$HISTORIAN_IP:$HISTORIAN_API_PORT/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then
+  echo "OK: API do Historian respondeu."
+else
+  echo "AVISO: não consegui confirmar a API do Historian em http://$HISTORIAN_IP:$HISTORIAN_API_PORT — confira se ele está rodando e se a porta está liberada no firewall. O dashboard sobe mesmo assim, mas as telas de configuração de variáveis vão falhar até isso ser resolvido."
+fi
 
-# --- 9. Cria as senhas dos 3 papéis do Historian --------------------------
-log "Configurando as senhas de acesso do Historian (admin/operator/viewer)..."
-HISTORIAN_DB_CONTAINER="${COMPOSE_PROJECT_NAME}-historian-db-1"
-
-ROLE_SQL="$(docker exec "$HISTORIAN_API_CONTAINER" python3 -c "
-import bcrypt
-pwds = {'admin': '$HISTORIAN_ADMIN_PASSWORD', 'operator': '$HISTORIAN_OPERATOR_PASSWORD', 'viewer': '$HISTORIAN_VIEWER_PASSWORD'}
-for role, pw in pwds.items():
-    h = bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
-    print(f\"INSERT INTO role_credentials (role, password_hash) VALUES ('{role}', '{h}') ON CONFLICT (role) DO UPDATE SET password_hash = EXCLUDED.password_hash;\")
-")"
-echo "$ROLE_SQL" | docker exec -i "$HISTORIAN_DB_CONTAINER" psql -U wtecc -d wtecc_historian >/dev/null
-
-# --- 10. Resumo final ------------------------------------------------------
+# --- 8. Resumo final ---------------------------------------------------
 log "Instalação concluída!"
 cat <<EOF
 
-  Dashboard:         http://$HOST_LAN_IP:3000
-                     (sem usuário ainda — o primeiro cadastro na tela de
-                      login vira administrador automaticamente)
+  Dashboard:  http://$HOST_LAN_IP:3000
+              (sem usuário ainda — o primeiro cadastro na tela de login
+               vira administrador automaticamente)
 
-  Historian (CLPs):  http://$HOST_LAN_IP:3001
-                     admin    = $HISTORIAN_ADMIN_PASSWORD
-                     operator = $HISTORIAN_OPERATOR_PASSWORD
-                     viewer   = $HISTORIAN_VIEWER_PASSWORD
-
-  CLP cadastrado:    $PLC_NAME ($PLC_IP, driver $PLC_DRIVER)
-                     Sem tags ainda — cadastre pela tela do Historian.
-
-  ATENÇÃO: guarde essas senhas em local seguro agora — elas não são
-  mostradas de novo (ficam só como hash no banco). Se perder, é possível
-  trocar depois pela própria tela do Historian (como admin).
+  Conectado ao Historian em: $HISTORIAN_IP:$HISTORIAN_INFLUX_PORT (InfluxDB) e $HISTORIAN_IP:$HISTORIAN_API_PORT (API)
 
 EOF

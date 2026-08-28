@@ -1,27 +1,28 @@
-# Manual de Instalação — Forno Dashboard + Wtecc Historian
+# Manual de Instalação — Forno Dashboard
 
 Este manual guia a instalação **do zero**, passo a passo, mesmo que você nunca tenha usado terminal antes. Funciona tanto num computador com **Linux** quanto com **Windows**. Siga na ordem — não pule etapas.
 
-**Tempo estimado**: 30 a 60 minutos, dependendo da velocidade da internet.
+**Tempo estimado**: 15 a 30 minutos, dependendo da velocidade da internet.
+
+Este é o projeto de **visualização** (Dashboard). Ele depende do
+[Wtecc Historian](https://github.com/ronthel/wtecc-historian) já instalado
+e rodando — **instale o Historian primeiro** e guarde os valores que aparecem
+no final da instalação dele (você vai precisar deles aqui).
 
 ---
 
 ## Visão geral (como tudo se encaixa)
 
 ```
- Seu computador (Windows ou Linux)
- ┌─────────────────────────────────────┐
- │              Docker                  │
- │  ┌───────────┐      ┌─────────────┐  │        ┌─────────┐
- │  │ Dashboard │      │  Historian  │◄─┼────────┤   CLP   │
- │  │  (gráficos)│      │(cadastro CLP)│  │        │(máquina)│
- │  └─────┬─────┘      └──────┬──────┘  │        └─────────┘
- │        │  Bancos de dados  │         │
- │        └─────────┬─────────┘         │
- └──────────────────┼───────────────────┘
-                     │
-              seu navegador
-           (Chrome, Firefox...)
+ Outro computador (ou este mesmo)          Este computador
+ ┌──────────────────────┐                  ┌───────────────────────────┐
+ │        Docker          │                  │           Docker           │
+ │  ┌──────────────────┐ │                  │  ┌───────────────────────┐ │
+ │  │                    │ │                  │  │                        │ │
+ │  │   Wtecc Historian  │◄┼──────rede────────┼──┤   Forno Dashboard      │ │
+ │  │ (coleta + cadastro)│ │                  │  │   (gráficos)            │ │
+ │  └──────────────────┘ │                  │  └───────────────────────┘ │
+ └──────────────────────┘                  └───────────────────────────┘
 ```
 
 Você vai instalar **um programa (Docker)** que roda tudo isso sozinho, dentro do computador. Depois, acessa pelo navegador de qualquer computador da mesma rede.
@@ -30,10 +31,9 @@ Você vai instalar **um programa (Docker)** que roda tudo isso sozinho, dentro d
 
 ## O que você vai precisar antes de começar
 
-- [ ] Um computador com **Windows 10/11** OU **Ubuntu Linux** (22.04+), ligado na **mesma rede local** do CLP.
+- [ ] Um computador com **Windows 10/11** OU **Ubuntu Linux** (22.04+), ligado na **mesma rede local** do servidor do Historian (pode ser este mesmo computador).
 - [ ] Esse computador **ligado na internet** (só durante a instalação).
-- [ ] O **endereço IP do CLP** — pergunte ao técnico de automação, se não souber.
-- [ ] Saber o **fabricante do CLP**: Rockwell (Allen-Bradley), Siemens ou Schneider.
+- [ ] O **Wtecc Historian já instalado**, com os 4 valores anotados no final da instalação dele: IP/porta do InfluxDB, IP/porta da API, `INFLUX_TOKEN` e a senha do papel `viewer`.
 - [ ] Acesso ao computador (na frente dele, ou remotamente).
 
 > 💡 Tudo que você precisa digitar está em caixas cinzas como esta:
@@ -100,7 +100,7 @@ Abra a **Microsoft Store**, procure por **"Ubuntu"** e instale (é gratuito). De
 sudo apt update && sudo apt install -y git
 ```
 
-> 📝 **Anote o IP do Windows agora** (vai precisar dele no Passo 5 da Parte B): abra o **PowerShell normal do Windows** (não o Ubuntu) e rode:
+> 📝 **Anote o IP do Windows agora** (vai precisar dele na Parte B): abra o **PowerShell normal do Windows** (não o Ubuntu) e rode:
 > ```powershell
 > ipconfig
 > ```
@@ -110,19 +110,7 @@ Pronto — siga para a **Parte B**, sempre dentro do terminal **Ubuntu**.
 
 ---
 
-## PARTE B — Instalação (igual para Windows e Linux)
-
-Existem **duas formas** de instalar — escolha uma:
-
-| | **B.1 — Do zero** | **B.2 — Por clonagem** |
-|---|---|---|
-| Quando usar | Primeira instalação, ou não tem uma instalação já validada pra copiar | Já existe uma instalação testada e funcionando, e você quer replicar ela num cliente novo |
-| O que acontece | Baixa e constrói tudo do zero (precisa de internet boa) | Restaura um pacote pronto (código + imagens já testadas + estrutura dos bancos) — mais rápido e não depende de internet no site do cliente |
-| Quem faz | Qualquer pessoa seguindo este manual | **Equipe técnica WTECC** prepara o pacote (B.2, passo 1); a instalação em si (passo 2) pode ser feita por qualquer pessoa, igual à B.1 |
-
-Nos dois casos, o resultado final é o mesmo: uma instalação nova, com senhas próprias, banco vazio e pronta pra cadastrar o CLP do cliente — siga para a **Parte C** depois de qualquer uma das duas.
-
-### B.1 — Do zero
+## PARTE B — Instalação
 
 #### Passo 1 — Baixar o programa
 
@@ -147,72 +135,30 @@ O script vai fazer perguntas:
 | Pergunta | O que responder |
 |---|---|
 | IP desta máquina na rede local | **Linux**: aperte Enter pra aceitar o valor sugerido. **Windows**: digite o IP que você anotou no `ipconfig` (Parte A.2) — **não** aceite o valor sugerido automaticamente, ele estará errado. |
-| Nome do CLP | Um nome pra identificar, ex: `Forno01` (sem espaços) |
-| IP do CLP | O endereço de rede do controlador, ex: `192.168.1.108` |
-| Fabricante do CLP | `1` Rockwell · `2` Siemens · `3` Schneider |
-| Slot / Rack | Aperte Enter pra aceitar o padrão, se não souber (o técnico de automação ajusta depois se precisar) |
+| IP do servidor do Historian | Se for este mesmo computador, aperte Enter. Se for outro servidor, digite o IP dele. |
+| Porta do InfluxDB / Porta da API do Historian | Aperte Enter pra aceitar o padrão (`8181`/`8000`), a menos que a instalação do Historian tenha te informado portas diferentes. |
+| `INFLUX_TOKEN` | Cole o valor anotado no final da instalação do Historian. |
+| Senha do papel "viewer" | Cole o valor anotado no final da instalação do Historian. |
 
-**Depois é só esperar** — pode levar de 5 a 15 minutos na primeira vez (baixa vários programas da internet). Mensagens `==> Subindo...`, `==> Criando...` são normais.
+**Depois é só esperar** — pode levar alguns minutos na primeira vez (baixa vários programas da internet). Mensagens `==> Subindo...`, `==> Construindo...` são normais.
 
 #### Passo 3 — Guardar as informações finais
 
-Ao terminar, aparece um resumo assim:
+Ao terminar, aparece um resumo com o endereço do dashboard:
 
 ```
-  Dashboard:         http://192.168.1.50:3000
-  Historian (CLPs):  http://192.168.1.50:3001
-                     admin    = xxXXxxXXxx
-                     operator = xxXXxxXXxx
-                     viewer   = xxXXxxXXxx
+  Dashboard:  http://192.168.1.60:3000
 ```
-
-> 🔴 **MUITO IMPORTANTE**: tire uma foto da tela ou anote **agora**. Essas senhas **não aparecem de novo**. Guarde em local seguro.
-
----
-
-### B.2 — Por clonagem
-
-Essa opção parte de uma instalação **já validada e funcionando** (por exemplo, a primeira instalação, ou a de um cliente anterior) e usa ela como base pra criar uma nova, isolada — com código e imagens já testados, mas com **todas as senhas trocadas** e **sem nenhum dado do cliente anterior** (histórico, CLP cadastrado, usuários).
-
-#### Passo 1 — Gerar o pacote (equipe técnica WTECC, na instalação de origem)
-
-Dentro da instalação que já está funcionando:
-```bash
-cd ~/projects/forno-dashboard
-./scripts/backup-instalacao.sh
-```
-Isso gera uma pasta `~/backup-forno-<data>-<hora>/` com o código, as imagens já testadas e os dados atuais.
-
-> 🔴 **Esse pacote é confidencial** — contém as senhas atuais da instalação de origem (usadas só de passagem, pra autenticar a troca no passo seguinte). Transfira só por um canal seguro (rede local, pendrive) e apague de qualquer lugar temporário assim que a clonagem terminar.
-
-#### Passo 2 — Instalar no computador do cliente
-
-Depois de preparar o computador conforme a **Parte A**, e com o pacote do Passo 1 já transferido pra essa máquina:
-```bash
-./clonar-instalacao.sh /caminho/para/backup-forno-<data>-<hora>
-```
-
-O script vai pedir o **IP desta máquina** (mesma orientação da tabela do B.1) e os **dados do CLP** deste cliente (nome, IP, fabricante, slot/rack) — os mesmos campos do Passo 2 da instalação do zero.
-
-Ele então restaura os dados, troca automaticamente todas as senhas e tokens, apaga o histórico e o CLP da instalação de origem, e cadastra o CLP novo. Ao final, aparece o mesmo tipo de resumo com as senhas — vale o mesmo aviso: **anote agora**.
-
-> 💡 Como as imagens já vêm prontas no pacote, esse caminho **não depende de baixar nada da internet** durante a instalação — útil em locais com rede fraca ou restrita.
-
-Depois de confirmar que tudo subiu certo, apague o pacote de backup dessa máquina também.
 
 ---
 
 ## PARTE C — Primeiro acesso
 
-Abra um navegador (Chrome, Firefox) em **qualquer computador da mesma rede** e acesse os endereços do resumo.
+Abra um navegador (Chrome, Firefox) em **qualquer computador da mesma rede** e acesse o endereço do resumo.
 
-**C.1 — Dashboard** (`:3000`): na primeira vez, crie um usuário — **o primeiro cadastro vira administrador automaticamente**.
+**C.1** — Na primeira vez, crie um usuário — **o primeiro cadastro vira administrador automaticamente**.
 
-**C.2 — Historian** (`:3001`): entre com papel **admin** e a senha do resumo. Em **CLPs**, confirme que o controlador aparece com bolinha **verde** (conectado).
-
-**C.3 — Cadastrar as tags**: ainda no Historian, **Tags → Nova tag** → escolha o CLP → busque o nome da tag (peça a lista ao técnico de automação) → salve. Repita para cada variável.
-
-**C.4 — Trazer pro Dashboard**: volte pro Dashboard como administrador, vá em **Variáveis** (barra lateral) → **Nova** → busque a tag cadastrada → preencha descrição/unidade/limites → **Salvar**. No dashboard principal, clique em **Adicionar** pra criar um gráfico.
+**C.2 — Trazer as variáveis do Historian**: como administrador, vá em **Variáveis** (barra lateral) → **Nova** → busque a tag já cadastrada no Historian → preencha descrição/unidade/limites → **Salvar**. No dashboard principal, clique em **Adicionar** pra criar um gráfico.
 
 **Pronto — sistema instalado e funcionando.**
 
@@ -224,10 +170,8 @@ Abra um navegador (Chrome, Firefox) em **qualquer computador da mesma rede** e a
 
 **O comando de instalação do Docker travou** — Você deve ter clicado dentro da janela sem querer. Feche, abra de novo, repita o comando (não duplica o que já foi instalado).
 
-**CLP aparece "fora do ar" no Historian** — Confirme o IP do CLP com o técnico de automação, confirme que a máquina está na mesma rede (`ping <ip-do-clp>`, `Ctrl+C` pra parar), e no caso Siemens confirme o rack/slot.
+**"AVISO: não consegui confirmar a API do Historian"** — O `install.sh` continua mesmo assim, mas as telas de Variáveis/Perdas vão falhar até isso ser resolvido. Confirme: o Historian está rodando (`docker ps` na máquina dele)? O IP/portas digitados na instalação estão certos? Existe firewall bloqueando as portas 8000/8181 entre as duas máquinas?
 
-**(Windows) Não consigo acessar pelo IP de outro computador** — Confirme que usou o IP do `ipconfig` do **Windows** (não o do Ubuntu) na pergunta de instalação. Se persistir, verifique o Firewall do Windows (pode estar bloqueando as portas 3000/3001).
-
-**Esqueci uma senha do Historian** — Entre como `admin`, vá na tela de administração de usuários/papéis e troque — não precisa reinstalar.
+**(Windows) Não consigo acessar pelo IP de outro computador** — Confirme que usou o IP do `ipconfig` do **Windows** (não o do Ubuntu) na pergunta de instalação. Se persistir, verifique o Firewall do Windows (pode estar bloqueando a porta 3000).
 
 **Outro problema** — Contate o suporte técnico responsável por esta instalação.

@@ -14,101 +14,10 @@ services:
       timeout: 5s
       retries: 10
 
-  influxdb:
-    image: influxdb:3-core
-    restart: unless-stopped
-    ports:
-      - "8181:8181"
-    command:
-      - influxdb3
-      - serve
-      - --node-id=forno-node0
-      - --object-store=file
-      - --data-dir=/var/lib/influxdb3/data
-    volumes:
-      - influxdb_data:/var/lib/influxdb3/data
-
-  # TimescaleDB próprio do "Wtecc Historian" (app do parceiro externo) — guarda
-  # cadastro de CLPs/tags e o histórico bruto dele. Independente do postgres
-  # de produção acima (bancos, credenciais e volumes completamente separados).
-  historian-db:
-    image: timescale/timescaledb:latest-pg16
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: wtecc
-      POSTGRES_PASSWORD: ${HISTORIAN_DB_PASSWORD}
-      POSTGRES_DB: wtecc_historian
-    volumes:
-      - historian_db_data:/var/lib/postgresql/data
-      - ./historian/init-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./historian/init-status-tables.sql:/docker-entrypoint-initdb.d/02-status-tables.sql:ro
-      - ./historian/seed-data.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wtecc"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  # Coletor do Wtecc Historian — conecta no CLP real, grava no historian-db
-  # (config/estado dele) e também no InfluxDB de produção (measurement
-  # "tag_events", ao lado de "Variaveis" sem conflito nenhum). Substitui o
-  # plc-service como fonte de dados; o plc-service fica parado (não removido)
-  # como caminho de rollback instantâneo.
-  historian-collector:
-    build:
-      context: ./historian/collector
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://wtecc:${HISTORIAN_DB_PASSWORD}@historian-db:5432/wtecc_historian
-      RELOAD_INTERVAL_S: "15"
-      WRITE_BATCH_INTERVAL_S: "1.0"
-      INFLUXDB_HOST: http://influxdb:8181
-      INFLUXDB_TOKEN: ${INFLUX_TOKEN}
-      INFLUXDB_DATABASE: forno
-    depends_on:
-      historian-db:
-        condition: service_healthy
-      influxdb:
-        condition: service_started
-
-  # API de administração do Wtecc Historian (FastAPI) — telas de cadastro de
-  # CLPs/tags, regras de logging, senhas por papel. Fala com o MESMO
-  # historian-db acima (não duplica nada, é a ferramenta de configuração do
-  # banco que o historian-collector já lê).
-  historian-api:
-    build:
-      context: ./historian-admin/backend
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+psycopg://wtecc:${HISTORIAN_DB_PASSWORD}@historian-db:5432/wtecc_historian
-      JWT_SECRET_KEY: ${HISTORIAN_JWT_SECRET}
-      INFLUXDB_HOST: http://influxdb:8181
-      INFLUXDB_TOKEN: ${INFLUX_TOKEN}
-      INFLUXDB_DATABASE: forno
-    ports:
-      - "8000:8000"
-    # Só este container tem acesso ao socket do Docker — usado unicamente
-    # pela rota POST /system/restart-collector (reinício manual do coletor,
-    # disparado pela tela de CLPs, restrito ao papel admin). Dá a esta API
-    # o mesmo nível de controle do host Docker, por isso fica isolado aqui
-    # e não em nenhum outro serviço.
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      historian-db:
-        condition: service_healthy
-
-  historian-frontend:
-    build:
-      context: ./historian-admin/frontend
-    restart: unless-stopped
-    environment:
-      VITE_API_URL: http://${HOST_LAN_IP}:8000
-    ports:
-      - "3001:3001"
-    depends_on:
-      - historian-api
-
+  # InfluxDB e Historian (cadastro de CLPs/tags) NÃO moram mais aqui — são
+  # o projeto separado "wtecc-historian", que pode rodar nesta mesma máquina
+  # ou em outro servidor. O backend aponta pra eles pela rede, via
+  # INFLUX_URL/HISTORIAN_API_URL em backend/.env (ver install.sh).
   backend:
     build:
       context: ./backend
@@ -117,7 +26,6 @@ services:
       - ./backend/.env
     environment:
       POSTGRES_HOST: postgres
-      INFLUX_URL: http://influxdb:8181
       # Sem isso o container roda em UTC por padrão — a detecção de turno do
       # OEE (hora_inicio/hora_fim) compara com o horário LOCAL do Brasil, e
       # ficava 3h adiantada (ex: 11h reais detectadas como Turno B, das
@@ -128,8 +36,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      influxdb:
-        condition: service_started
 
   frontend:
     build:
@@ -144,22 +50,5 @@ services:
     depends_on:
       - backend
 
-  # Coletor antigo, substituído pelo historian-collector — mantido só como
-  # caminho de rollback. Não sobe por padrão (perfil "legacy"); pra ligar:
-  # docker compose --profile legacy up -d plc-service
-  plc-service:
-    build:
-      context: ./plc-service
-    restart: unless-stopped
-    profiles: ["legacy"]
-    env_file:
-      - ./plc-service/.env
-    environment:
-      INFLUX_URL: http://influxdb:8181
-    depends_on:
-      - influxdb
-
 volumes:
   postgres_data:
-  influxdb_data:
-  historian_db_data:
