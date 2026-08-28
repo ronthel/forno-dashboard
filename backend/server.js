@@ -1219,6 +1219,27 @@ function ocorrenciaCompleta(row, now) {
   return { start, endProgramado: end, plannedSeg, isAtual };
 }
 
+// Ocorrência de um turno numa DATA ESPECÍFICA escolhida pelo usuário — ao
+// contrário de calcularOcorrencia/ocorrenciaCompleta (que buscam pra trás a
+// ocorrência mais recente já iniciada, caindo no dia anterior se o turno de
+// hoje ainda não começou), esta aqui fica PRESA no dia pedido: se o turno
+// daquele dia ainda não começou, devolve isFutura=true e uma janela que
+// ainda não teve nenhum dado gravado (zera sozinho, sem cair no dia
+// anterior). Usada pela tela de Perdas, que precisa respeitar o dia
+// selecionado, não "o último turno que rodou".
+function ocorrenciaParaData(row, dataYYYYMMDD, now) {
+  const [ano, mes, dia] = dataYYYYMMDD.split('-').map(Number);
+  const dataAlvo = new Date(ano, (mes || 1) - 1, dia || 1);
+  dataAlvo.setHours(0, 0, 0, 0);
+  const hoje = new Date(now);
+  hoje.setHours(0, 0, 0, 0);
+  const diaOffset = Math.round((dataAlvo.getTime() - hoje.getTime()) / 86400000);
+  const { start, end, plannedSeg } = ocorrenciaNoDia(row, now, diaOffset);
+  const isFutura = start.getTime() > now.getTime();
+  const isAtual = !isFutura && now.getTime() < end.getTime();
+  return { start, endProgramado: end, plannedSeg, isAtual, isFutura };
+}
+
 // As últimas N ocorrências de um turno (mais recente primeiro) — usada pro
 // histórico real de OEE (ver GET /api/oee/historico), andando um dia de
 // cada vez pra trás até juntar a quantidade pedida.
@@ -1647,19 +1668,19 @@ app.get('/api/perdas/metrics', async (req, res) => {
     const perdasRes = await db.query('SELECT * FROM perdas_config WHERE ativo = TRUE ORDER BY descricao, field_name');
     const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
     const now = new Date();
+    // ?data=YYYY-MM-DD — dia que o usuário quer ver (padrão: hoje). Preso
+    // nesse dia de propósito: se o turno ainda não começou hoje, mostra
+    // zerado em vez de "puxar" o turno de ontem (ver ocorrenciaParaData).
+    const dataAlvo = req.query.data || now.toLocaleDateString('sv-SE');
 
     const turnos = {};
     let totalGeralKg = 0;
     for (const turnoRow of turnosRes.rows) {
-      // ocorrenciaCompleta (mesma função usada no OEE) dá o fim PROGRAMADO
-      // do turno, sem cortar em "agora" — é o que o gráfico da tela de
-      // Perdas usa pra desenhar o eixo X do início ao fim do turno inteiro,
-      // mesmo que ele ainda não tenha terminado.
-      const occ = ocorrenciaCompleta(turnoRow, now);
+      const occ = ocorrenciaParaData(turnoRow, dataAlvo, now);
       const variaveis = [];
       let totalTurnoKg = 0;
 
-      if (occ) {
+      if (occ && !occ.isFutura) {
         const sumEnd = occ.isAtual ? now : occ.endProgramado;
         const startISO = occ.start.toISOString();
         const endISO = sumEnd.toISOString();
@@ -1673,12 +1694,17 @@ app.get('/api/perdas/metrics', async (req, res) => {
             perdaKg: Number(perdaKg.toFixed(2))
           });
         }
+      } else {
+        for (const p of perdasRes.rows) {
+          variaveis.push({ fieldName: p.field_name, descricao: p.descricao || p.field_name, perdaKg: 0 });
+        }
       }
 
       totalGeralKg += totalTurnoKg;
       turnos[turnoRow.turno_key] = {
         nome: turnoRow.nome,
         isAtual: occ?.isAtual || false,
+        isFutura: occ?.isFutura || false,
         variaveis,
         totalKg: Number(totalTurnoKg.toFixed(2)),
         inicio: occ ? occ.start.toISOString() : null,
@@ -1686,7 +1712,7 @@ app.get('/api/perdas/metrics', async (req, res) => {
       };
     }
 
-    res.json({ configured: perdasRes.rows.length > 0, turnos, totalGeralKg: Number(totalGeralKg.toFixed(2)) });
+    res.json({ configured: perdasRes.rows.length > 0, data: dataAlvo, turnos, totalGeralKg: Number(totalGeralKg.toFixed(2)) });
   } catch (err) {
     console.error('Erro ao calcular métricas de Perdas:', err);
     res.status(500).json({ error: 'Erro ao calcular métricas de Perdas' });
@@ -1709,15 +1735,18 @@ app.get('/api/perdas/tendencia', async (req, res) => {
     }
     const row = turnoRes.rows[0];
     const now = new Date();
-    const occ = ocorrenciaCompleta(row, now);
+    // ?data=YYYY-MM-DD — mesmo dia escolhido na tela (padrão: hoje). Preso
+    // nesse dia — não cai no turno de ontem se o de hoje ainda não começou.
+    const dataAlvo = req.query.data || now.toLocaleDateString('sv-SE');
+    const occ = ocorrenciaParaData(row, dataAlvo, now);
 
     const perdasRes = await db.query('SELECT * FROM perdas_config WHERE ativo = TRUE ORDER BY descricao, field_name');
 
-    if (!occ || perdasRes.rows.length === 0) {
-      const fallback = occ ? { start: occ.start, end: occ.endProgramado } : ocorrenciaNoDia(row, now, 0);
+    if (!occ || occ.isFutura || perdasRes.rows.length === 0) {
       return res.json({
-        turnoKey, inicio: fallback.start.toISOString(), fimProgramado: fallback.end.toISOString(),
-        variaveis: []
+        turnoKey, data: dataAlvo, inicio: occ.start.toISOString(), fimProgramado: occ.endProgramado.toISOString(),
+        isFutura: occ?.isFutura || false,
+        variaveis: (perdasRes.rows || []).map((p) => ({ fieldName: p.field_name, descricao: p.descricao || p.field_name, leituras: [] }))
       });
     }
 
@@ -1738,12 +1767,63 @@ app.get('/api/perdas/tendencia', async (req, res) => {
     }
 
     res.json({
-      turnoKey, inicio: occ.start.toISOString(), fimProgramado: occ.endProgramado.toISOString(),
+      turnoKey, data: dataAlvo, inicio: occ.start.toISOString(), fimProgramado: occ.endProgramado.toISOString(),
       isAtual: occ.isAtual, variaveis
     });
   } catch (err) {
     console.error('Erro ao calcular tendência de Perdas:', err);
     res.status(500).json({ error: 'Erro ao calcular tendência de Perdas' });
+  }
+});
+
+// Relatório de Perdas num período livre — uma linha por (dia, turno,
+// variável) com o total de kg pesado naquela ocorrência. O frontend baixa
+// isso em CSV (igual ao relatório de Paradas); dias/turnos que ainda não
+// aconteceram (futuro) são pulados, não entram zerados no relatório.
+app.get('/api/perdas/relatorio', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  if (!startDate || !endDate) return res.status(400).json({ error: 'Informe startDate e endDate (YYYY-MM-DD).' });
+  if (startDate > endDate) return res.status(400).json({ error: 'startDate não pode ser depois de endDate.' });
+
+  const inicioMs = new Date(`${startDate}T00:00:00`).getTime();
+  const fimMs = new Date(`${endDate}T00:00:00`).getTime();
+  if (Number.isNaN(inicioMs) || Number.isNaN(fimMs)) return res.status(400).json({ error: 'Datas inválidas.' });
+  const totalDias = Math.round((fimMs - inicioMs) / 86400000) + 1;
+  if (totalDias > 92) return res.status(400).json({ error: 'Período máximo de 92 dias por relatório.' });
+
+  try {
+    const perdasRes = await db.query('SELECT * FROM perdas_config WHERE ativo = TRUE ORDER BY descricao, field_name');
+    const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
+    const now = new Date();
+
+    const linhas = [];
+    for (let i = 0; i < totalDias; i++) {
+      const dataStr = new Date(inicioMs + i * 86400000).toLocaleDateString('sv-SE');
+      for (const turnoRow of turnosRes.rows) {
+        const occ = ocorrenciaParaData(turnoRow, dataStr, now);
+        if (occ.isFutura) continue; // turno ainda não aconteceu nesse dia — não entra no relatório
+        const sumEnd = occ.isAtual ? now : occ.endProgramado;
+        const startISO = occ.start.toISOString();
+        const endISO = sumEnd.toISOString();
+        for (const p of perdasRes.rows) {
+          const soma = await influxSumInWindow(p.field_name, startISO, endISO);
+          const perdaKg = Math.max(0, soma) * Number(p.fator_kg);
+          linhas.push({
+            data: dataStr,
+            turnoKey: turnoRow.turno_key,
+            turnoNome: turnoRow.nome,
+            fieldName: p.field_name,
+            descricao: p.descricao || p.field_name,
+            perdaKg: Number(perdaKg.toFixed(2))
+          });
+        }
+      }
+    }
+
+    res.json(linhas);
+  } catch (err) {
+    console.error('Erro ao gerar relatório de Perdas:', err);
+    res.status(500).json({ error: 'Erro ao gerar relatório de Perdas' });
   }
 });
 
