@@ -159,7 +159,7 @@ const playAlarmSound = (isMuted) => {
   } catch (err) { console.warn('Audio não permitido:', err); }
 };
 
-function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, isMuted, onHiddenFieldsChange }) {
+function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, isMuted, onHiddenFieldsChange, autoScale, xDomain, keepPolling }) {
   const fields = useMemo(
     () => (Array.isArray(chart.fields) ? chart.fields : (chart.field ? [chart.field] : [])),
     [chart.fields, chart.field]
@@ -316,11 +316,15 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
   useEffect(() => {
     setLoading(true);
     fetchData();
-    if (refreshInterval === 0 || (customDates?.startDate && customDates?.endDate)) return;
+    // customDates normalmente pausa a atualização automática (é um período
+    // histórico fixo escolhido no Dashboard, não precisa recarregar sozinho)
+    // — mas keepPolling (usado pela tela de Perdas, cuja "data fixa" é só a
+    // janela do turno atual, ainda em andamento) força continuar atualizando.
+    if (refreshInterval === 0 || (customDates?.startDate && customDates?.endDate && !keepPolling)) return;
     const interval = setInterval(fetchData, refreshInterval);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chart.id, seriesMeta, timeRange, customDates, refreshInterval, isMuted, sensorConfigLoaded]);
+  }, [chart.id, seriesMeta, timeRange, customDates, refreshInterval, isMuted, sensorConfigLoaded, keepPolling]);
 
   const lastRow = data.length > 0 ? data[data.length - 1] : null;
   const isOutOfRange = lastRow
@@ -342,10 +346,14 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
   // mínimo até maior máximo configurados), já que é um eixo só compartilhado.
   // Só cai de volta pro ajuste automático por dados se os limites configurados
   // não fizerem sentido como domínio (min == max, ou nenhuma variável visível).
+  // autoScale (usado pela tela de Perdas): pula direto pro ajuste automático
+  // por dados, ignorando os limites configurados — pesagens não têm um
+  // "alarme" fixo fazendo sentido, então honrar o limite cadastrado só
+  // deixaria o gráfico preso numa escala grande demais pro valor real.
   const domainY = useMemo(() => {
     const relevantSeries = visibleSeriesMeta.length > 0 ? visibleSeriesMeta : seriesMeta;
 
-    if (relevantSeries.length > 0) {
+    if (!autoScale && relevantSeries.length > 0) {
       const lo = Math.min(...relevantSeries.map((s) => s.minLimit));
       const hi = Math.max(...relevantSeries.map((s) => s.maxLimit));
       if (hi > lo) return [lo, hi];
@@ -364,7 +372,7 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
     const [minVal, maxVal] = minMax(allValues);
     const padding = (maxVal - minVal) * 0.2 || 10;
     return [Math.floor(minVal - padding), Math.ceil(maxVal + padding)];
-  }, [data, visibleSeriesMeta, seriesMeta]);
+  }, [data, visibleSeriesMeta, seriesMeta, autoScale]);
 
   const formatXTick = (tickItem) => {
     if (!tickItem) return '';
@@ -504,7 +512,7 @@ function ChartCard({ chart, timeRange, customDates, refreshInterval, onRemove, i
                 dataKey="timestamp"
                 type="number"
                 scale="time"
-                domain={zoomDomain || ['dataMin', 'dataMax']}
+                domain={zoomDomain || xDomain || ['dataMin', 'dataMax']}
                 allowDataOverflow
                 tickFormatter={formatXTick}
                 stroke="#94a3b8"

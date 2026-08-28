@@ -241,6 +241,22 @@ async function initPostgres() {
       -- some da lista de coleta do plc-service) mas o histórico já gravado no
       -- InfluxDB continua intacto — soft delete, nunca apagamos a linha.
       ALTER TABLE sensores_config ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE;
+
+      -- Liga uma variável já cadastrada (sensores_config) ao cálculo de
+      -- Perdas — mesma ideia do mapeamento de variáveis do OEE, mas pra
+      -- contadores de perda/refugo em peso. "fator_kg" converte o valor bruto
+      -- lido da tag pra quilos (ex: se a tag já vem em kg, fator=1; se vem em
+      -- gramas, fator=0.001). ON DELETE CASCADE: se a variável for excluída
+      -- da lista de Variáveis, o vínculo de Perdas some junto, sem deixar
+      -- referência morta.
+      CREATE TABLE IF NOT EXISTS perdas_config (
+        id SERIAL PRIMARY KEY,
+        field_name VARCHAR(100) NOT NULL UNIQUE REFERENCES sensores_config(field_name) ON DELETE CASCADE,
+        descricao VARCHAR(200),
+        fator_kg NUMERIC NOT NULL DEFAULT 1,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Duas variáveis com a mesma descrição confundem o picker de seleção do
@@ -1123,6 +1139,35 @@ async function influxBaseline(tagName, isoTimestamp) {
   return influxFirstValueFrom(tagName, isoTimestamp);
 }
 
+// Soma todas as LEITURAS dentro de uma janela [inicio, fim) — diferente de
+// influxBaseline/influxValueAtOrBefore (que olham um contador cumulativo e
+// pegam só o valor num instante). Usada pra Perdas: cada pesagem de saco
+// rejeitado grava um registro NOVO e independente na tag (não é um contador
+// que só cresce, é um evento discreto por pesagem) — o total do turno é a
+// soma de todas essas pesagens que caíram dentro da janela dele.
+async function influxSumInWindow(tagName, startISO, endISO) {
+  if (!tagName) return 0;
+  const reader = await influxDB.query(
+    `SELECT SUM(value_num) AS total FROM "tag_events" WHERE tag_name = '${tagName}' AND time >= '${startISO}' AND time < '${endISO}'`
+  );
+  for await (const row of reader) return Number(row.total) || 0;
+  return 0;
+}
+
+// Cada leitura individual dentro de uma janela, em ordem cronológica — usado
+// pra construir a soma CORRIDA (acumulado subindo a cada pesagem nova) do
+// gráfico de tendência de Perdas, diferente de influxSumInWindow (que só dá
+// o total final, sem os degraus pelo caminho).
+async function influxReadingsInWindow(tagName, startISO, endISO) {
+  if (!tagName) return [];
+  const reader = await influxDB.query(
+    `SELECT time, value_num FROM "tag_events" WHERE tag_name = '${tagName}' AND time >= '${startISO}' AND time < '${endISO}' ORDER BY time ASC`
+  );
+  const rows = [];
+  for await (const row of reader) rows.push({ time: new Date(row.time).getTime(), value: Number(row.value_num) || 0 });
+  return rows;
+}
+
 const hhmmToMinutes = (hhmm) => {
   const [h, m] = String(hhmm).split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
@@ -1515,6 +1560,190 @@ app.put('/api/paradas/motivos/:id', requireRole(['supervisor', 'administrador'])
   } catch (err) {
     console.error('Erro ao editar motivo de parada:', err);
     res.status(500).json({ error: 'Erro ao editar motivo de parada' });
+  }
+});
+
+// --- ROTAS DE CONFIGURAÇÃO DE PERDAS ---
+// Liga variáveis já cadastradas (sensores_config) ao cálculo de Perdas —
+// mesmo catálogo simples do padrão de motivos_parada, mas cada linha aponta
+// pra uma tag existente. "fatorKg" converte o valor bruto da tag pra quilos.
+app.get('/api/config/perdas', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM perdas_config ORDER BY descricao, field_name');
+    res.json(result.rows.map((r) => ({
+      id: r.id, fieldName: r.field_name, descricao: r.descricao,
+      fatorKg: Number(r.fator_kg), ativo: r.ativo
+    })));
+  } catch (err) {
+    console.error('Erro ao listar configuração de perdas:', err);
+    res.status(500).json({ error: 'Erro ao listar configuração de perdas' });
+  }
+});
+
+app.post('/api/config/perdas', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const { fieldName, descricao, fatorKg } = req.body;
+  if (!fieldName?.trim()) return res.status(400).json({ error: 'Selecione a variável.' });
+  const fator = Number(fatorKg);
+  if (!Number.isFinite(fator) || fator <= 0) return res.status(400).json({ error: 'Fator de conversão pra kg precisa ser um número maior que zero.' });
+  try {
+    const result = await db.query(
+      'INSERT INTO perdas_config (field_name, descricao, fator_kg) VALUES ($1, $2, $3) RETURNING id, field_name, descricao, fator_kg, ativo',
+      [fieldName.trim(), descricao?.trim() || null, fator]
+    );
+    logAudit({ userId: req.user.id, username: req.user.username, role: req.user.role, action: 'vinculou variável às Perdas', details: { fieldName, descricao, fatorKg: fator } });
+    const r = result.rows[0];
+    res.status(201).json({ id: r.id, fieldName: r.field_name, descricao: r.descricao, fatorKg: Number(r.fator_kg), ativo: r.ativo });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Essa variável já está vinculada às Perdas.' });
+    if (err.code === '23503') return res.status(400).json({ error: 'Variável não encontrada na lista de Variáveis.' });
+    console.error('Erro ao vincular variável às Perdas:', err);
+    res.status(500).json({ error: 'Erro ao vincular variável às Perdas' });
+  }
+});
+
+app.put('/api/config/perdas/:id', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  const { descricao, fatorKg, ativo } = req.body;
+  if (fatorKg !== undefined && (!Number.isFinite(Number(fatorKg)) || Number(fatorKg) <= 0)) {
+    return res.status(400).json({ error: 'Fator de conversão pra kg precisa ser um número maior que zero.' });
+  }
+  try {
+    const result = await db.query(
+      `UPDATE perdas_config SET
+         descricao = COALESCE($1, descricao),
+         fator_kg = COALESCE($2, fator_kg),
+         ativo = COALESCE($3, ativo)
+       WHERE id = $4 RETURNING id, field_name, descricao, fator_kg, ativo`,
+      [descricao?.trim() || null, fatorKg !== undefined ? Number(fatorKg) : null, typeof ativo === 'boolean' ? ativo : null, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vínculo não encontrado.' });
+    logAudit({ userId: req.user.id, username: req.user.username, role: req.user.role, action: 'editou vínculo de Perdas', details: { id: req.params.id, descricao, fatorKg, ativo } });
+    const r = result.rows[0];
+    res.json({ id: r.id, fieldName: r.field_name, descricao: r.descricao, fatorKg: Number(r.fator_kg), ativo: r.ativo });
+  } catch (err) {
+    console.error('Erro ao editar vínculo de Perdas:', err);
+    res.status(500).json({ error: 'Erro ao editar vínculo de Perdas' });
+  }
+});
+
+app.delete('/api/config/perdas/:id', requireRole(['supervisor', 'administrador']), async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM perdas_config WHERE id = $1 RETURNING field_name', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vínculo não encontrado.' });
+    logAudit({ userId: req.user.id, username: req.user.username, role: req.user.role, action: 'removeu vínculo de Perdas', details: { fieldName: result.rows[0].field_name } });
+    res.json({ message: 'Vínculo removido.' });
+  } catch (err) {
+    console.error('Erro ao remover vínculo de Perdas:', err);
+    res.status(500).json({ error: 'Erro ao remover vínculo de Perdas' });
+  }
+});
+
+// Perda acumulada (em kg) por variável, por turno — soma de todas as
+// PESAGENS registradas dentro da janela do turno (cada saco de rejeito
+// pesado pelo operador grava um evento novo e independente na tag; não é um
+// contador que só cresce, então o total é SOMA das leituras da janela, não
+// diferença entre início e fim — ver influxSumInWindow).
+app.get('/api/perdas/metrics', async (req, res) => {
+  try {
+    const perdasRes = await db.query('SELECT * FROM perdas_config WHERE ativo = TRUE ORDER BY descricao, field_name');
+    const turnosRes = await db.query('SELECT * FROM turnos_config ORDER BY turno_key');
+    const now = new Date();
+
+    const turnos = {};
+    let totalGeralKg = 0;
+    for (const turnoRow of turnosRes.rows) {
+      // ocorrenciaCompleta (mesma função usada no OEE) dá o fim PROGRAMADO
+      // do turno, sem cortar em "agora" — é o que o gráfico da tela de
+      // Perdas usa pra desenhar o eixo X do início ao fim do turno inteiro,
+      // mesmo que ele ainda não tenha terminado.
+      const occ = ocorrenciaCompleta(turnoRow, now);
+      const variaveis = [];
+      let totalTurnoKg = 0;
+
+      if (occ) {
+        const sumEnd = occ.isAtual ? now : occ.endProgramado;
+        const startISO = occ.start.toISOString();
+        const endISO = sumEnd.toISOString();
+        for (const p of perdasRes.rows) {
+          const soma = await influxSumInWindow(p.field_name, startISO, endISO);
+          const perdaKg = Math.max(0, soma) * Number(p.fator_kg);
+          totalTurnoKg += perdaKg;
+          variaveis.push({
+            fieldName: p.field_name,
+            descricao: p.descricao || p.field_name,
+            perdaKg: Number(perdaKg.toFixed(2))
+          });
+        }
+      }
+
+      totalGeralKg += totalTurnoKg;
+      turnos[turnoRow.turno_key] = {
+        nome: turnoRow.nome,
+        isAtual: occ?.isAtual || false,
+        variaveis,
+        totalKg: Number(totalTurnoKg.toFixed(2)),
+        inicio: occ ? occ.start.toISOString() : null,
+        fimProgramado: occ ? occ.endProgramado.toISOString() : null
+      };
+    }
+
+    res.json({ configured: perdasRes.rows.length > 0, turnos, totalGeralKg: Number(totalGeralKg.toFixed(2)) });
+  } catch (err) {
+    console.error('Erro ao calcular métricas de Perdas:', err);
+    res.status(500).json({ error: 'Erro ao calcular métricas de Perdas' });
+  }
+});
+
+// Tendência de Perdas do turno: mostra cada PESAGEM individual gravada pelo
+// operador, no horário e peso (kg) exatos em que ela aconteceu — não é um
+// acumulado subindo, é o dado bruto de cada evento. (O acumulado por turno
+// continua disponível, mas só nos cards/totais de GET /api/perdas/metrics.)
+// Cada turno usa sua própria janela (start/end), então o gráfico troca de
+// conteúdo sozinho ao virar o turno — não precisa de reset manual.
+app.get('/api/perdas/tendencia', async (req, res) => {
+  const turnoKey = req.query.turnoKey;
+  if (!turnoKey) return res.status(400).json({ error: 'Informe turnoKey.' });
+  try {
+    const turnoRes = await db.query('SELECT * FROM turnos_config WHERE turno_key = $1', [turnoKey]);
+    if (turnoRes.rows.length === 0) {
+      return res.json({ turnoKey, inicio: null, fimProgramado: null, variaveis: [] });
+    }
+    const row = turnoRes.rows[0];
+    const now = new Date();
+    const occ = ocorrenciaCompleta(row, now);
+
+    const perdasRes = await db.query('SELECT * FROM perdas_config WHERE ativo = TRUE ORDER BY descricao, field_name');
+
+    if (!occ || perdasRes.rows.length === 0) {
+      const fallback = occ ? { start: occ.start, end: occ.endProgramado } : ocorrenciaNoDia(row, now, 0);
+      return res.json({
+        turnoKey, inicio: fallback.start.toISOString(), fimProgramado: fallback.end.toISOString(),
+        variaveis: []
+      });
+    }
+
+    const sampleEnd = occ.isAtual ? now : occ.endProgramado;
+    const startISO = occ.start.toISOString();
+    const endISO = sampleEnd.toISOString();
+
+    // Leituras de cada variável, em ordem, dentro da janela do turno —
+    // cada uma vira um ponto no gráfico com seu próprio horário e peso.
+    const variaveis = [];
+    for (const p of perdasRes.rows) {
+      const leituras = await influxReadingsInWindow(p.field_name, startISO, endISO);
+      variaveis.push({
+        fieldName: p.field_name,
+        descricao: p.descricao || p.field_name,
+        leituras: leituras.map((l) => ({ tempoMs: l.time, valorKg: Number((l.value * Number(p.fator_kg)).toFixed(2)) }))
+      });
+    }
+
+    res.json({
+      turnoKey, inicio: occ.start.toISOString(), fimProgramado: occ.endProgramado.toISOString(),
+      isAtual: occ.isAtual, variaveis
+    });
+  } catch (err) {
+    console.error('Erro ao calcular tendência de Perdas:', err);
+    res.status(500).json({ error: 'Erro ao calcular tendência de Perdas' });
   }
 });
 
