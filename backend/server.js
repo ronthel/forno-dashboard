@@ -2273,7 +2273,7 @@ function formatarDataISO(d) {
 // meio-dia local pra nunca cair no dia errado por causa de fuso horário.
 // Sem o parâmetro, usa ontem (o último dia já fechado).
 function parseDataRelatorio(dataStr) {
-  if (!dataStr) return new Date(Date.now() - 86400000);
+  if (!dataStr) return new Date();
   const d = new Date(`${dataStr}T12:00:00`);
   return Number.isNaN(d.getTime()) ? null : d;
 }

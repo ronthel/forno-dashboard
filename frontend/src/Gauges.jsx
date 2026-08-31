@@ -1,4 +1,5 @@
 import React from 'react';
+import InfoTooltip from './InfoTooltip';
 
 // Gauges no estilo "painel industrial" (anel + meio-círculo com faixas
 // vermelho/amarelo/verde) — layout copiado de um print de referência trazido
@@ -9,7 +10,7 @@ import React from 'react';
 // --- Anel do OEE: indicador principal, um único arco em gradiente
 // laranja→vermelho (sem faixas de cor — é o resumo de tudo, já tem posição
 // de destaque própria na tela).
-export function OeeRingGauge({ value, label = 'OEE', size = 176 }) {
+export function OeeRingGauge({ value, label = 'OEE', size = 176, tooltip }) {
   const v = Math.min(100, Math.max(0, value || 0));
   const strokeWidth = 14;
   const r = (size - strokeWidth) / 2;
@@ -18,7 +19,10 @@ export function OeeRingGauge({ value, label = 'OEE', size = 176 }) {
 
   return (
     <div className="flex flex-col items-center shrink-0">
-      <span className="text-amber-400 text-xs font-extrabold tracking-widest uppercase mb-1">{label}</span>
+      <span className="text-amber-400 text-xs font-extrabold tracking-widest uppercase mb-1 flex items-center gap-1">
+        {label}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </span>
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
           <defs>
@@ -63,7 +67,7 @@ function corDaFaixa(fracao) {
   return (BANDAS.find((b) => fracao <= b.ate) || BANDAS[BANDAS.length - 1]).cor;
 }
 
-export function HalfDonutGauge({ value, label, size = 132 }) {
+export function HalfDonutGauge({ value, label, size = 132, tooltip }) {
   const v = Math.min(100, Math.max(0, value || 0));
   const fracao = v / 100;
   const strokeWidth = 14;
@@ -99,7 +103,10 @@ export function HalfDonutGauge({ value, label, size = 132 }) {
         <line x1={tick.x1} y1={tick.y1} x2={tick.x2} y2={tick.y2} stroke="#f8fafc" strokeWidth={3} strokeLinecap="round" />
       </svg>
       <span className="text-2xl font-extrabold font-mono -mt-1" style={{ color: corValor }}>{Math.round(v)}%</span>
-      <span className="text-slate-300 text-xs font-semibold mt-0.5 text-center">{label}</span>
+      <span className="text-slate-300 text-xs font-semibold mt-0.5 text-center flex items-center gap-1">
+        {label}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </span>
     </div>
   );
 }

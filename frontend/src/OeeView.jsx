@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Gauge, Activity, CheckCircle, Clock, Database, TrendingUp, Settings, RotateCcw, RefreshCw, Power, AlertTriangle } from 'lucide-react';
+import { Gauge, Clock, Database, TrendingUp, Settings, RotateCcw, RefreshCw, Power, AlertTriangle } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import api, { isOk } from './api';
 import ProductionTimeline from './ProductionTimeline';
 import { calcularMetricasOee } from './oeeCalc';
 import { OeeRingGauge, HalfDonutGauge } from './Gauges';
+import InfoTooltip from './InfoTooltip';
 
 const TURNO_KEYS = ['turnoA', 'turnoB', 'turnoC'];
 
@@ -119,18 +120,6 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
   const goodCount = turnoSelecionado.goodCount || 0;
   const velocidadeInstantaneaPpm = turnoSelecionado.velocidadeInstantaneaPpm;
 
-  // OEE Acumulado "leitura direta" (Peças Boas ÷ Minutos decorridos ×
-  // Velocidade Padrão) e Desempenho Instantâneo (Velocidade Atual ÷
-  // Velocidade Padrão) — indicadores adicionais, mais diretos pro operador,
-  // que vêm prontos do backend / são derivados aqui. Não substituem o OEE
-  // Consolidado (anel abaixo), que continua sendo o cálculo A×P×Q oficial.
-  const elapsedMin = turnoSelecionado.elapsedMin || 0;
-  const expectedCount = turnoSelecionado.expectedCount || 0;
-  const oeeSimplificado = turnoSelecionado.oeeSimplificado || 0;
-  const desempenhoInstantaneoPct = velocidadeInstantaneaPpm != null && velocidadeNominalPpm > 0
-    ? Math.min(100, (velocidadeInstantaneaPpm / velocidadeNominalPpm) * 100)
-    : null;
-
   // Cálculo do turno selecionado — sempre pela MESMA fórmula usada no
   // gráfico de tendência e no Relatório Executivo (calcularMetricasOee, em
   // oeeCalc.js). Antes essa conta vinha duplicada aqui manualmente, o que
@@ -149,6 +138,40 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
     availability, performance, quality, oee: oeeAtual,
     label: turnoLabel(selectedTurno)
   };
+
+  // Textos dos tooltips (ícone "i" ao lado de cada campo calculado) — sempre
+  // com a fórmula E os números reais que chegaram naquele valor, pra quem
+  // está olhando entender de onde veio o percentual sem precisar perguntar.
+  const plannedSegAtual = turnoSelecionado.plannedSeg || 0;
+  const runTimeMin = runTimeSec / 60;
+  const velocidadeMediaRealPpm = runTimeSec > 0 ? (totalCount / runTimeMin) : 0;
+
+  const tooltipDisponibilidade =
+    `Disponibilidade = Tempo Rodando ÷ Tempo Planejado × 100\n` +
+    `${runTimeSec}s ÷ ${plannedSegAtual.toFixed(0)}s = ${availability.toFixed(1)}%\n\n` +
+    `Tempo Planejado já descontou as paradas PROGRAMADAS (limpeza, setup) da duração do turno.`;
+
+  const tooltipQualidade =
+    `Qualidade = Peças Boas ÷ Total Produzido × 100\n` +
+    `${goodCount} ÷ ${totalCount} = ${quality.toFixed(1)}%\n\n` +
+    (totalCount === 0
+      ? `Sem nenhuma peça produzida no período, mostra 0% — não 100%: não dá pra dizer que a qualidade foi boa se nada saiu.`
+      : `Peças Boas = Total Produzido − Refugo (${totalCount} − ${refugoCount}).`);
+
+  const tooltipPerformance =
+    `Performance = Velocidade Média Real ÷ Velocidade Nominal × 100\n` +
+    `Vel. Média Real = Total Produzido ÷ Minutos Rodando = ${totalCount} ÷ ${runTimeMin.toFixed(1)}min = ${velocidadeMediaRealPpm.toFixed(1)} pct/min\n` +
+    `${velocidadeMediaRealPpm.toFixed(1)} ÷ ${velocidadeNominalPpm} = ${performance.toFixed(1)}%\n\n` +
+    `É a MÉDIA desde o início do turno (ou desde o último "Zerar") — pode ser diferente da leitura instantânea do CLP agora mesmo.`;
+
+  const tooltipOeeGauge =
+    `OEE = Disponibilidade × Performance × Qualidade ÷ 100²\n` +
+    `${availability.toFixed(1)}% × ${performance.toFixed(1)}% × ${quality.toFixed(1)}% = ${oeeAtual.toFixed(1)}%\n\n` +
+    `Cálculo oficial (padrão internacional) de eficiência da linha. Meta configurada: ${metaAtual}%.`;
+
+  const tooltipTendencia =
+    `Cada ponto do gráfico é o OEE só DAQUELA janela de 15 minutos — não é acumulado desde o início do turno.\n\n` +
+    `Por isso pode aparecer diferente do número atual dos cards/gauges acima, que é a média desde o início do turno (ou desde o último "Zerar").`;
 
   // Gráfico de tendência DENTRO do turno selecionado: OEE acumulado desde o
   // início até o horário final programado do turno — mostra a evolução do
@@ -381,79 +404,17 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
         </div>
       )}
 
-      {/* Seção Central */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
-
-        {/* Coluna Esquerda: Cards de Métricas — grade 2x2 (em vez de 4
-            empilhados) pra caber na altura da tela sem cortar nada embaixo. */}
-        <div className="lg:col-span-4 grid grid-cols-2 gap-2">
-          <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-2 shadow-md flex items-center justify-between">
-            <div>
-              <span className="text-slate-400 text-[10px] font-semibold uppercase leading-tight block">Disponibilidade</span>
-              <h2 className="text-lg font-bold text-emerald-400 font-mono mt-0.5">{currentMetrics.availability.toFixed(1)}%</h2>
-            </div>
-            <Activity className="text-emerald-400 bg-emerald-950/40 p-1 rounded-lg border border-emerald-500/20 shrink-0 ml-1" size={20} />
-          </div>
-
-          <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-2 shadow-md flex items-center justify-between">
-            <div>
-              <span className="text-slate-400 text-[10px] font-semibold uppercase leading-tight block">Qualidade</span>
-              <h2 className="text-lg font-bold text-orange-400 font-mono mt-0.5">{currentMetrics.quality.toFixed(1)}%</h2>
-            </div>
-            <CheckCircle className="text-orange-400 bg-orange-950/40 p-1 rounded-lg border border-orange-500/20 shrink-0 ml-1" size={20} />
-          </div>
-
-          <div className="col-span-2 bg-slate-800/90 border border-slate-700 rounded-xl p-2 shadow-md flex items-center justify-between">
-            <div className="flex-1">
-              <span className="text-slate-400 text-[10px] font-semibold uppercase leading-tight block">Performance</span>
-              <h2 className="text-lg font-bold text-amber-400 font-mono mt-0.5">{currentMetrics.performance.toFixed(1)}%</h2>
-              {turnoSelecionado.isAtual && velocidadeInstantaneaPpm != null && (
-                <div className="flex items-center gap-1.5 mt-1">
-                  <div className="h-1.5 flex-1 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
-                    <div className="h-full bg-sky-500 transition-all duration-500" style={{ width: `${desempenhoInstantaneoPct || 0}%` }} />
-                  </div>
-                  <span className="text-[10px] text-sky-400 font-mono font-bold shrink-0" title={`Desempenho instantâneo: ${velocidadeInstantaneaPpm.toFixed(0)} de ${velocidadeNominalPpm} pct/min`}>
-                    {desempenhoInstantaneoPct != null ? desempenhoInstantaneoPct.toFixed(0) : '—'}%
-                  </span>
-                </div>
-              )}
-            </div>
-            <Clock className="text-amber-400 bg-amber-950/40 p-1 rounded-lg border border-amber-500/20 shrink-0 ml-2" size={20} />
-          </div>
-
-          {/* OEE Acumulado — leitura direta: Peças Boas ÷ (Minutos decorridos ×
-              Velocidade Padrão). Indicador extra, mais fácil de explicar pro
-              operador; o OEE Consolidado (anel ao lado) continua sendo o
-              cálculo oficial A×P×Q, sem mudança. */}
-          <div className={`col-span-2 border rounded-xl p-2 shadow-md flex items-center justify-between ${
-            oeeSimplificado >= metaAtual ? 'bg-emerald-950/40 border-emerald-700' : 'bg-red-950/40 border-red-700'
-          }`}>
-            <div>
-              <span className="text-slate-400 text-[10px] font-semibold uppercase leading-tight block">OEE Acumulado — Leitura Direta</span>
-              <h2 className={`text-lg font-bold font-mono mt-0.5 ${oeeSimplificado >= metaAtual ? 'text-emerald-400' : 'text-red-400'}`}>
-                {oeeSimplificado.toFixed(0)}%
-              </h2>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                {goodCount} boas de {expectedCount} esperadas em {elapsedMin.toFixed(0)} min
-              </p>
-            </div>
-            {oeeSimplificado >= metaAtual
-              ? <CheckCircle className="text-emerald-400 bg-emerald-950/40 p-1 rounded-lg border border-emerald-500/20 shrink-0 ml-2" size={20} />
-              : <AlertTriangle className="text-red-400 bg-red-950/40 p-1 rounded-lg border border-red-500/20 shrink-0 ml-2" size={20} />}
-          </div>
-        </div>
-
-        {/* Coluna Direita: gauges no formato "painel industrial" — anel do
-            OEE + os 3 meio-círculos de Disponibilidade/Performance/
-            Qualidade com faixas vermelho/amarelo/verde (formato copiado de
-            um print de referência, Fase 5). */}
-        <div className="lg:col-span-8 bg-slate-800/90 border border-slate-700 rounded-xl p-2 shadow-md flex items-center justify-center gap-4 flex-wrap">
-          <OeeRingGauge value={currentMetrics.oee} />
-          <HalfDonutGauge value={currentMetrics.availability} label="Disponibilidade" />
-          <HalfDonutGauge value={currentMetrics.performance} label="Performance" />
-          <HalfDonutGauge value={currentMetrics.quality} label="Qualidade" />
-        </div>
-
+      {/* Seção Central — só os gauges (anel do OEE + os 3 meio-círculos de
+          Disponibilidade/Performance/Qualidade, faixas vermelho/amarelo/
+          verde, formato copiado de um print de referência, Fase 5). Os
+          cards numéricos que ficavam do lado esquerdo foram removidos por
+          pedido do usuário — a informação já está nos gauges, mostrar dos
+          dois jeitos era redundante. */}
+      <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-3 shadow-md flex items-center justify-center gap-6 flex-wrap">
+        <OeeRingGauge value={currentMetrics.oee} tooltip={tooltipOeeGauge} />
+        <HalfDonutGauge value={currentMetrics.availability} label="Disponibilidade" tooltip={tooltipDisponibilidade} />
+        <HalfDonutGauge value={currentMetrics.performance} label="Performance" tooltip={tooltipPerformance} />
+        <HalfDonutGauge value={currentMetrics.quality} label="Qualidade" tooltip={tooltipQualidade} />
       </div>
 
       {/* Gráfico de Tendência */}
@@ -461,6 +422,7 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
         <div className="flex justify-between items-center mb-1">
           <h3 className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
             <TrendingUp size={13} className="text-amber-400" /> Evolução do OEE no Turno ({currentMetrics.label}) - Meta: {metaAtual}%
+            <InfoTooltip text={tooltipTendencia} />
           </h3>
           <span className="text-[11px] text-slate-400 font-mono">Atual: <strong className="text-amber-400">{currentMetrics.oee.toFixed(1)}%</strong></span>
         </div>

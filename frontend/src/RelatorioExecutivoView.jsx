@@ -34,8 +34,8 @@ function formatDuracaoSeg(totalSeg) {
   return `${min}min`;
 }
 
-function ontemStr() {
-  const d = new Date(Date.now() - 86400000);
+function hojeStr() {
+  const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
@@ -138,7 +138,7 @@ const exportarPdf = (dataStr, turnos, turnosAnterior, velocidadeNominalPpm, pare
 // parada com MTTR/MTBF. Botão de PDF gera o mesmo conteúdo pra imprimir ou
 // anexar na ata.
 export default function RelatorioExecutivoView({ onBack }) {
-  const [dataStr, setDataStr] = useState(ontemStr());
+  const [dataStr, setDataStr] = useState(hojeStr());
   const [turnos, setTurnos] = useState(null);
   const [turnosAnterior, setTurnosAnterior] = useState(null);
   const [velocidadeNominalPpm, setVelocidadeNominalPpm] = useState(50);
