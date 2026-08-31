@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Gauge, Activity, CheckCircle, Clock, Database, TrendingUp, Settings, RotateCcw, RefreshCw, Power, AlertTriangle } from 'lucide-react';
-import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import api, { isOk } from './api';
 import ProductionTimeline from './ProductionTimeline';
-import { calcularMetricasOee } from './oeeCalc';
-import { OeeRingGauge, HalfDonutGauge } from './Gauges';
+import { calcularOeePonto } from './oeeCalc';
 
 const TURNO_KEYS = ['turnoA', 'turnoB', 'turnoC'];
 
@@ -117,6 +116,7 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
   const totalCount = turnoSelecionado.totalCount || 0;
   const refugoCount = turnoSelecionado.refugoCount || 0;
   const goodCount = turnoSelecionado.goodCount || 0;
+  const plannedTimeSec = turnoSelecionado.plannedSeg || 28800;
   const velocidadeInstantaneaPpm = turnoSelecionado.velocidadeInstantaneaPpm;
 
   // OEE Acumulado "leitura direta" (Peças Boas ÷ Minutos decorridos ×
@@ -131,13 +131,16 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
     ? Math.min(100, (velocidadeInstantaneaPpm / velocidadeNominalPpm) * 100)
     : null;
 
-  // Cálculo do turno selecionado — sempre pela MESMA fórmula usada no
-  // gráfico de tendência e no Relatório Executivo (calcularMetricasOee, em
-  // oeeCalc.js). Antes essa conta vinha duplicada aqui manualmente, o que
-  // já violava o aviso lá em cima do arquivo ("nunca duplicar essa conta")
-  // e foi exatamente o que deixou a tela e o gráfico divergir num detalhe
-  // (Qualidade = 100% default durante parada, só corrigido lá).
-  const { availability, performance, quality, oee: oeeAtual } = calcularMetricasOee(turnoSelecionado, velocidadeNominalPpm);
+  // Cálculo do turno selecionado
+  const availability = plannedTimeSec > 0 ? Math.min(100, (runTimeSec / plannedTimeSec) * 100) : 0;
+  // Performance em pacotes/minuto: velocidade real média (contagem total
+  // dividida pelo tempo rodando, não pelo tempo total do turno — isola a
+  // perda de velocidade da perda de disponibilidade, que já é contada à
+  // parte) sobre a velocidade nominal da linha.
+  const velocidadeReaMediaPpm = runTimeSec > 0 ? (totalCount / (runTimeSec / 60)) : 0;
+  const performance = velocidadeNominalPpm > 0 ? Math.min(100, (velocidadeReaMediaPpm / velocidadeNominalPpm) * 100) : 0;
+  const quality = totalCount > 0 ? Math.min(100, (goodCount / totalCount) * 100) : 100;
+  const oeeAtual = (availability * performance * quality) / 10000;
 
   const turnoLabel = (key) => {
     const t = turnos[key];
@@ -148,6 +151,12 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
   const currentMetrics = {
     availability, performance, quality, oee: oeeAtual,
     label: turnoLabel(selectedTurno)
+  };
+
+  const getOeeColor = (val, meta) => {
+    if (val < meta - 20) return '#ef4444';
+    if (val < meta) return '#eab308';
+    return '#22c55e';
   };
 
   // Gráfico de tendência DENTRO do turno selecionado: OEE acumulado desde o
@@ -162,17 +171,11 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
           if (cancelado || !isOk(res)) return;
           const data = res.data || {};
           const nominal = data.velocidadeNominalPpm || velocidadeNominalPpm;
-          const pontos = (data.pontos || []).map((p) => {
-            const m = calcularMetricasOee(p, nominal);
-            return {
-              tempoMs: p.tempoMs,
-              time: p.label,
-              oee: Number(m.oee.toFixed(1)),
-              availability: Number(m.availability.toFixed(1)),
-              performance: Number(m.performance.toFixed(1)),
-              quality: Number(m.quality.toFixed(1))
-            };
-          });
+          const pontos = (data.pontos || []).map((p) => ({
+            tempoMs: p.tempoMs,
+            time: p.label,
+            oee: calcularOeePonto(p, nominal)
+          }));
           setHistoryData(pontos);
           setTurnoJanela({
             inicio: data.inicio ? new Date(data.inicio).getTime() : null,
@@ -207,6 +210,18 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
     const interval = setInterval(fetchTimeline, 30000);
     return () => { cancelado = true; clearInterval(interval); };
   }, [selectedTurno]);
+
+  const r1 = 85;
+  const c1 = 2 * Math.PI * r1;
+  const stroke1 = c1 - (currentMetrics.availability / 100) * c1;
+
+  const r2 = 68;
+  const c2 = 2 * Math.PI * r2;
+  const stroke2 = c2 - (currentMetrics.performance / 100) * c2;
+
+  const r3 = 51;
+  const c3 = 2 * Math.PI * r3;
+  const stroke3 = c3 - (currentMetrics.quality / 100) * c3;
 
   const handleReset = async () => {
     if (!window.confirm(`Zerar os contadores do OEE do turno atual (${currentMetrics.label}) a partir de agora? Isso não muda nada no CLP — só marca este instante como novo ponto de partida pros cálculos desse turno. Os outros turnos e o gráfico de tendência não são afetados.`)) return;
@@ -443,15 +458,32 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
           </div>
         </div>
 
-        {/* Coluna Direita: gauges no formato "painel industrial" — anel do
-            OEE + os 3 meio-círculos de Disponibilidade/Performance/
-            Qualidade com faixas vermelho/amarelo/verde (formato copiado de
-            um print de referência, Fase 5). */}
-        <div className="lg:col-span-8 bg-slate-800/90 border border-slate-700 rounded-xl p-2 shadow-md flex items-center justify-center gap-4 flex-wrap">
-          <OeeRingGauge value={currentMetrics.oee} />
-          <HalfDonutGauge value={currentMetrics.availability} label="Disponibilidade" />
-          <HalfDonutGauge value={currentMetrics.performance} label="Performance" />
-          <HalfDonutGauge value={currentMetrics.quality} label="Qualidade" />
+        {/* Coluna Direita: OEE Consolidado — só o mostrador, grande e
+            centralizado no quadrado dele, sem texto ao lado (os anéis já
+            usam as mesmas cores dos cards de Disponibilidade/Performance/
+            Qualidade à esquerda, que têm os rótulos). */}
+        <div className="lg:col-span-8 bg-slate-800/90 border border-slate-700 rounded-xl p-2 shadow-md flex items-center justify-center">
+          <div className="relative w-44 h-44 flex items-center justify-center shrink-0">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r={r1} fill="none" stroke="#1e293b" strokeWidth="13" />
+              <circle cx="100" cy="100" r={r1} fill="none" stroke="#22c55e" strokeWidth="13"
+                strokeDasharray={c1} strokeDashoffset={stroke1} strokeLinecap="round" className="transition-all duration-700" />
+
+              <circle cx="100" cy="100" r={r2} fill="none" stroke="#1e293b" strokeWidth="13" />
+              <circle cx="100" cy="100" r={r2} fill="none" stroke="#eab308" strokeWidth="13"
+                strokeDasharray={c2} strokeDashoffset={stroke2} strokeLinecap="round" className="transition-all duration-700" />
+
+              <circle cx="100" cy="100" r={r3} fill="none" stroke="#1e293b" strokeWidth="13" />
+              <circle cx="100" cy="100" r={r3} fill="none" stroke="#f97316" strokeWidth="13"
+                strokeDasharray={c3} strokeDashoffset={stroke3} strokeLinecap="round" className="transition-all duration-700" />
+            </svg>
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span className="text-4xl font-extrabold font-mono tracking-tight" style={{ color: getOeeColor(currentMetrics.oee, metaAtual) }}>
+                {currentMetrics.oee.toFixed(0)}%
+              </span>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -465,52 +497,29 @@ export default function OeeView({ onBack, onOpenConfig, onOpenOeeConfig, oeeData
           <span className="text-[11px] text-slate-400 font-mono">Atual: <strong className="text-amber-400">{currentMetrics.oee.toFixed(1)}%</strong></span>
         </div>
 
-        {/* Disponibilidade/Performance/Qualidade entram como áreas
-            translúcidas INDEPENDENTES (sem stackId) — são 3 percentuais que
-            não somam 100%, então empilhar (somar) distorceria a leitura.
-            A linha do OEE fica por cima, igual ao print de referência. */}
-        <div className="flex gap-2" style={{ width: '100%', height: '110px' }}>
-          <div className="flex-1 bg-slate-900/70 p-1.5 rounded-lg border border-slate-700/60">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={historyData} margin={{ top: 5, right: 15, left: -20, bottom: -5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis
-                  dataKey="tempoMs"
-                  type="number"
-                  scale="time"
-                  domain={turnoJanela.inicio != null && turnoJanela.fim != null ? [turnoJanela.inicio, turnoJanela.fim] : ['dataMin', 'dataMax']}
-                  tickFormatter={(ms) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  stroke="#94a3b8" tick={{ fontSize: 10 }}
-                />
-                <YAxis domain={[0, 100]} stroke="#94a3b8" tick={{ fontSize: 10 }} />
-                <Tooltip
-                  labelFormatter={(ms) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', color: '#f1f5f9', borderRadius: '6px', fontSize: '11px' }}
-                />
-                <ReferenceLine y={metaAtual} stroke="#eab308" strokeDasharray="4 4" label={{ value: `Meta ${metaAtual}%`, fill: '#eab308', fontSize: 10, position: 'top' }} />
+        <div style={{ width: '100%', height: '90px' }} className="bg-slate-900/70 p-1.5 rounded-lg border border-slate-700/60">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={historyData} margin={{ top: 5, right: 15, left: -20, bottom: -5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis
+                dataKey="tempoMs"
+                type="number"
+                scale="time"
+                domain={turnoJanela.inicio != null && turnoJanela.fim != null ? [turnoJanela.inicio, turnoJanela.fim] : ['dataMin', 'dataMax']}
+                tickFormatter={(ms) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                stroke="#94a3b8" tick={{ fontSize: 10 }}
+              />
+              <YAxis domain={[0, 100]} stroke="#94a3b8" tick={{ fontSize: 10 }} />
+              <Tooltip
+                labelFormatter={(ms) => new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', color: '#f1f5f9', borderRadius: '6px', fontSize: '11px' }}
+                itemStyle={{ color: '#38bdf8' }}
+              />
+              <ReferenceLine y={metaAtual} stroke="#ef4444" strokeDasharray="4 4" label={{ value: `Meta ${metaAtual}%`, fill: '#ef4444', fontSize: 10, position: 'top' }} />
 
-                <Area type="monotone" dataKey="availability" name="Disponibilidade" stroke="#9d174d" fill="#9d174d" fillOpacity={0.55} />
-                <Area type="monotone" dataKey="performance" name="Performance" stroke="#f97316" fill="#f97316" fillOpacity={0.5} />
-                <Area type="monotone" dataKey="quality" name="Qualidade" stroke="#fb7185" fill="#fb7185" fillOpacity={0.45} />
-                <Line type="monotone" dataKey="oee" name="OEE" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 3, fill: '#ef4444' }} activeDot={{ r: 5 }} connectNulls={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Legenda — mesmas cores das séries acima, ordem igual ao print. */}
-          <div className="shrink-0 flex flex-col justify-center gap-1.5 pr-1">
-            {[
-              { cor: '#ef4444', label: 'OEE', dot: true },
-              { cor: '#9d174d', label: 'Disponibilidade' },
-              { cor: '#f97316', label: 'Performance' },
-              { cor: '#fb7185', label: 'Qualidade' }
-            ].map((it) => (
-              <div key={it.label} className="flex items-center gap-1.5">
-                <span className={`inline-block w-2.5 h-2.5 shrink-0 ${it.dot ? 'rounded-full' : 'rounded-sm'}`} style={{ backgroundColor: it.cor }} />
-                <span className="text-[10px] text-slate-300 font-semibold whitespace-nowrap">{it.label}</span>
-              </div>
-            ))}
-          </div>
+              <Line type="monotone" dataKey="oee" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 3, fill: '#38bdf8' }} activeDot={{ r: 5 }} name="OEE Global (janela de 15min)" connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Linha do Tempo de Produção — a barra representa o turno inteiro,

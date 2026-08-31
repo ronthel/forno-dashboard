@@ -1191,22 +1191,10 @@ function ocorrenciaNoDia(row, now, diaOffset) {
   return { start, end, plannedSeg: duracaoMin * 60 };
 }
 
-// A ocorrência de ONTEM (diaOffset -1) só pode "valer" como turno atual se
-// ainda estiver rodando agora (turno que atravessa a meia-noite, ex:
-// 22h-06h). Se ela já tiver terminado, é passado — não deve ser confundida
-// com "o turno de hoje que ainda não começou". Sem esse filtro, um turno B
-// configurado pra começar às 14h, consultado às 9h da manhã (antes de
-// começar hoje), acabava herdando os números do turno B de ONTEM inteiro
-// (já finalizado) em vez de aparecer zerado.
-function candidatosDeOcorrencia(row, now) {
-  return [0, -1]
-    .map((diaOffset) => ({ diaOffset, ...ocorrenciaNoDia(row, now, diaOffset) }))
-    .filter((c) => c.start.getTime() <= now.getTime())
-    .filter((c) => c.diaOffset === 0 || c.end.getTime() > now.getTime());
-}
-
 function calcularOcorrencia(row, now) {
-  const candidatos = candidatosDeOcorrencia(row, now);
+  const candidatos = [0, -1]
+    .map((diaOffset) => ocorrenciaNoDia(row, now, diaOffset))
+    .filter((c) => c.start.getTime() <= now.getTime());
 
   if (candidatos.length === 0) return null;
   candidatos.sort((a, b) => b.start.getTime() - a.start.getTime());
@@ -1221,7 +1209,9 @@ function calcularOcorrencia(row, now) {
 // que precisa saber o horário final PROGRAMADO pra desenhar o eixo X inteiro
 // mesmo que o turno ainda não tenha chegado lá.
 function ocorrenciaCompleta(row, now) {
-  const candidatos = candidatosDeOcorrencia(row, now);
+  const candidatos = [0, -1]
+    .map((diaOffset) => ocorrenciaNoDia(row, now, diaOffset))
+    .filter((c) => c.start.getTime() <= now.getTime());
   if (candidatos.length === 0) return null;
   candidatos.sort((a, b) => b.start.getTime() - a.start.getTime());
   const { start, end, plannedSeg } = candidatos[0];

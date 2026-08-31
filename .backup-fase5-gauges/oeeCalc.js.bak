@@ -8,13 +8,7 @@ export function calcularMetricasOee(ponto, velocidadeNominalPpm) {
   const availability = ponto.plannedSeg > 0 ? Math.min(100, (ponto.runTimeSec / ponto.plannedSeg) * 100) : 0;
   const velocidadeReaMediaPpm = ponto.runTimeSec > 0 ? (ponto.totalCount / (ponto.runTimeSec / 60)) : 0;
   const performance = velocidadeNominalPpm > 0 ? Math.min(100, (velocidadeReaMediaPpm / velocidadeNominalPpm) * 100) : 0;
-  // Sem nenhuma peça produzida no período (parada, ou turno que ainda nem
-  // começou a produzir), Qualidade fica 0 — não 100. Um valor "neutro" de
-  // 100% aqui é enganoso: parece dizer "tudo que saiu era bom" quando na
-  // verdade não saiu nada. Isso não muda o OEE final desses períodos (a
-  // Performance já é 0 quando não há produção, e 0 × qualquer coisa = 0),
-  // só corrige a leitura isolada de Qualidade mostrada nos gauges/gráfico.
-  const quality = ponto.totalCount > 0 ? Math.min(100, (ponto.goodCount / ponto.totalCount) * 100) : 0;
+  const quality = ponto.totalCount > 0 ? Math.min(100, (ponto.goodCount / ponto.totalCount) * 100) : 100;
   const oee = (availability * performance * quality) / 10000;
   return { availability, performance, quality, oee };
 }

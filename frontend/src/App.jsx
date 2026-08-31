@@ -10,6 +10,8 @@ import OeeView from './OeeView';
 import ConfigView from './ConfigView';
 import OeeConfigView from './OeeConfigView';
 import RelatorioExecutivoView from './RelatorioExecutivoView';
+import PerdasView from './PerdasView';
+import PerdasConfigView from './PerdasConfigView';
 import SensorConfigView from './SensorConfigView';
 import UserManagementView from './UserManagementView';
 import ForceChangePasswordView from './ForceChangePasswordView';
@@ -450,7 +452,7 @@ export default function App() {
   // permissão (ex.: troca de usuário para um perfil sem acesso enquanto a
   // tela já estava aberta), volta para o dashboard automaticamente.
   useEffect(() => {
-    const restrictedViews = ['configTurnos', 'configOee', 'configSensores'];
+    const restrictedViews = ['configTurnos', 'configOee', 'configSensores', 'configPerdas'];
     if (restrictedViews.includes(currentView) && !canConfig) {
       setCurrentView('dashboard');
     }
@@ -505,6 +507,47 @@ export default function App() {
         <Sidebar {...sidebarProps} />
         <div className="flex-1 overflow-hidden">
           <RelatorioExecutivoView onBack={() => setCurrentView('dashboard')} />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
+  }
+
+  if (currentView === 'perdas') {
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <PerdasView
+            onBack={() => setCurrentView('dashboard')}
+            isMuted={isMuted}
+          />
+        </div>
+        <UserSwitchModal
+          isOpen={isUserModalOpen}
+          onClose={() => setIsUserModalOpen(false)}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
+  }
+
+  if (currentView === 'configPerdas' && canConfig) {
+    return (
+      <div className="h-screen w-screen bg-slate-900 flex overflow-hidden">
+        <Sidebar {...sidebarProps} />
+        <div className="flex-1 overflow-hidden">
+          <PerdasConfigView onBack={() => setCurrentView('dashboard')} />
         </div>
         <UserSwitchModal
           isOpen={isUserModalOpen}

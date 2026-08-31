@@ -16,6 +16,15 @@ const pool = new Pool({
   port: process.env.POSTGRES_PORT || 5432,
 });
 
+// Sem esse listener, um erro em um client ocioso do pool (ex.: o Postgres
+// derrubando a conexão com "terminating connection due to administrator
+// command") vira uma exceção não tratada e derruba o processo Node inteiro
+// (visto em produção em 28/08/2026). O pool já descarta o client com
+// problema sozinho — aqui só evitamos que isso mate o servidor.
+pool.on('error', (err) => {
+  console.error('[PostgreSQL] Erro em client ocioso do pool (ignorado, processo continua no ar):', err.message);
+});
+
 // Inicializa tabelas de usuários/autenticação e de auditoria
 const initDb = async () => {
   const queryText = `
