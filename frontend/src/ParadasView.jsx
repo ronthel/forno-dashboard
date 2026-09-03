@@ -4,6 +4,17 @@ import api, { isOk } from './api';
 
 const ABERTA_ALERTA_MIN = 15; // parada aberta (sem terminar) há mais tempo que isso vira alerta vermelho
 
+function hojeStr() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatDataBR(dataStr) {
+  const [y, m, d] = dataStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function formatDuracaoSeg(totalSeg) {
   const seg = Math.max(0, Math.round(totalSeg));
   const h = Math.floor(seg / 3600);
@@ -313,21 +324,28 @@ export default function ParadasView({ onBack, canConfig }) {
   const [loading, setLoading] = useState(true);
   const [showMotivos, setShowMotivos] = useState(false);
   const [showRelatorio, setShowRelatorio] = useState(false);
+  // Dia mostrado no Pareto e no Histórico — igual ao seletor do Relatório
+  // Executivo. "Pendentes" e "parada aberta agora" ficam de fora desse
+  // filtro de propósito: são fila de ação/estado ao vivo, não histórico —
+  // não faz sentido "ver os pendentes de uma terça-feira passada".
+  const [dataStr, setDataStr] = useState(hojeStr());
+  const isHoje = dataStr === hojeStr();
 
   const carregar = useCallback(async () => {
     try {
-      // Tela mostra só o dia de hoje, de propósito — pra não empilhar
-      // histórico velho na tela. Outros períodos: botão "Gerar Relatório".
-      const inicioHoje = new Date();
-      inicioHoje.setHours(0, 0, 0, 0);
-      const hojeParams = { startDate: inicioHoje.toISOString(), endDate: new Date().toISOString() };
+      // Janela do dia selecionado: meia-noite até o fim do dia — mas se o
+      // dia selecionado for hoje, o fim é AGORA (não faz sentido pedir dados
+      // de um período que ainda não aconteceu).
+      const inicioDia = new Date(`${dataStr}T00:00:00`);
+      const fimDia = isHoje ? new Date() : new Date(`${dataStr}T23:59:59`);
+      const diaParams = { startDate: inicioDia.toISOString(), endDate: fimDia.toISOString() };
 
       const [motivosRes, pendentesRes, abertasRes, historicoRes, paretoRes] = await Promise.all([
         api.get('/api/paradas/motivos'),
         api.get('/api/paradas', { params: { status: 'pendentes' } }),
         api.get('/api/paradas', { params: { status: 'abertas' } }),
-        api.get('/api/paradas', { params: { ...hojeParams, limit: 200 } }),
-        api.get('/api/paradas/pareto', { params: hojeParams }),
+        api.get('/api/paradas', { params: { ...diaParams, limit: 200 } }),
+        api.get('/api/paradas/pareto', { params: diaParams }),
       ]);
       if (isOk(motivosRes)) setMotivos(motivosRes.data);
       if (isOk(pendentesRes)) setPendentes(pendentesRes.data);
@@ -339,13 +357,16 @@ export default function ParadasView({ onBack, canConfig }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dataStr, isHoje]);
 
   useEffect(() => {
     carregar();
+    // Atualização automática só faz sentido pro dia de hoje — um dia
+    // passado não muda mais, reconsultar de 15 em 15s seria só desperdício.
+    if (!isHoje) return;
     const interval = setInterval(carregar, 15000);
     return () => clearInterval(interval);
-  }, [carregar]);
+  }, [carregar, isHoje]);
 
   const handleClassificado = (id) => {
     setPendentes((prev) => prev.filter((p) => p.id !== id));
@@ -367,6 +388,14 @@ export default function ParadasView({ onBack, canConfig }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dataStr}
+            max={hojeStr()}
+            onChange={(e) => setDataStr(e.target.value)}
+            className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none focus:border-amber-500"
+            title="Dia mostrado no Pareto e no Histórico"
+          />
           {canConfig && (
             <button
               onClick={() => setShowMotivos((v) => !v)}
@@ -427,10 +456,10 @@ export default function ParadasView({ onBack, canConfig }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-slate-800/90 border border-slate-700 rounded-xl p-4 shadow-md">
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <BarChart3 size={16} className="text-amber-400" /> Pareto de Paradas (hoje)
+            <BarChart3 size={16} className="text-amber-400" /> Pareto de Paradas ({isHoje ? 'hoje' : formatDataBR(dataStr)})
           </h2>
           {!pareto || pareto.porMotivo.length === 0 ? (
-            <p className="text-slate-500 text-xs">Nenhuma parada classificada hoje ainda.</p>
+            <p className="text-slate-500 text-xs">Nenhuma parada classificada {isHoje ? 'hoje ainda' : 'nesse dia'}.</p>
           ) : (
             <div className="flex flex-col gap-2">
               {pareto.porMotivo.map((m) => (
@@ -475,7 +504,7 @@ export default function ParadasView({ onBack, canConfig }) {
           a tela toda pra baixo em vez de rolar sozinha). */}
       <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Histórico de Hoje</h2>
+          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Histórico {isHoje ? 'de Hoje' : `de ${formatDataBR(dataStr)}`}</h2>
         </div>
         <div className="bg-slate-800/90 border border-slate-700 rounded-xl flex-1 min-h-0 overflow-auto">
           <table className="w-full text-xs">
@@ -491,7 +520,7 @@ export default function ParadasView({ onBack, canConfig }) {
             </thead>
             <tbody>
               {historico.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-slate-500 py-6">Nenhuma parada registrada hoje.</td></tr>
+                <tr><td colSpan={6} className="text-center text-slate-500 py-6">Nenhuma parada registrada {isHoje ? 'hoje' : 'nesse dia'}.</td></tr>
               ) : historico.map((p) => (
                 <tr key={p.id} className="border-t border-slate-700/60">
                   <td className="px-3 py-2 font-mono text-slate-300">{formatHora(p.iniciado_em)}</td>

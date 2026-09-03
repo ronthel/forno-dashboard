@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from './api';
 import { X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { tipoAlarmeInfo } from './alarmTipo';
 
 export default function AlarmModal({ isOpen, onClose }) {
   const [alarms, setAlarms] = useState([]);
@@ -78,10 +79,8 @@ export default function AlarmModal({ isOpen, onClose }) {
                     <td className="py-2.5 px-3 text-slate-400">{alarm.formatted_date}</td>
                     <td className="py-2.5 px-3 font-bold text-amber-400">{alarm.field_name}</td>
                     <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        alarm.limit_type === 'MAX' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                      }`}>
-                        {alarm.limit_type === 'MAX' ? 'EXCESSO (MÁX)' : 'QUEDA (MÍN)'}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tipoAlarmeInfo(alarm.limit_type).badge}`}>
+                        {tipoAlarmeInfo(alarm.limit_type).label.toUpperCase()}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 font-bold text-red-400">{alarm.value_read}</td>

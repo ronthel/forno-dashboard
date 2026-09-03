@@ -3,6 +3,7 @@ import api, { isOk } from './api';
 import jsPDF from 'jspdf';
 import { Home, AlertTriangle, Search, Download, FileText, RefreshCw, AlertCircle, Loader2, X, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { hojeInicioLocal, agoraLocal } from './dateRangeUtils';
+import { tipoAlarmeInfo } from './alarmTipo';
 
 // Deriva um rótulo/estilo de status a partir de status (ATIVO/NORMALIZADO) +
 // acknowledged — as três situações que o usuário acompanha: ativo sem
@@ -25,7 +26,7 @@ const formatClearedInfo = (row) => {
 const formatRowForExport = (row) => ({
   disparado: row.formatted_date,
   variavel: row.field_name,
-  tipo: row.limit_type === 'MAX' ? 'Excesso (máx)' : 'Queda (mín)',
+  tipo: tipoAlarmeInfo(row.limit_type).label,
   valor: row.value_read,
   limite: row.limit_value,
   status: getStatusInfo(row).label,
@@ -386,10 +387,8 @@ export default function AlarmsView({ onBack, currentUserRole }) {
                     <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">{row.formatted_date}</td>
                     <td className="py-2.5 px-3 font-bold text-amber-400">{row.field_name}</td>
                     <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        row.limit_type === 'MAX' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                      }`}>
-                        {row.limit_type === 'MAX' ? 'EXCESSO (MÁX)' : 'QUEDA (MÍN)'}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tipoAlarmeInfo(row.limit_type).badge}`}>
+                        {tipoAlarmeInfo(row.limit_type).label.toUpperCase()}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 font-bold text-red-400">{row.value_read}</td>

@@ -257,6 +257,26 @@ async function initPostgres() {
         ativo BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- "Memória" própria do valor dos contadores do CLP (Tempo Rodando,
+      -- Contagem Total, Refugo) no exato instante em que cada turno começa
+      -- a ser observado rodando. Esses contadores NUNCA são zerados no CLP
+      -- — só crescem pra sempre — então "zerar por turno" é responsabilidade
+      -- nossa: sem guardar esse valor uma vez, cada cálculo tinha que
+      -- reconsultar o histórico do InfluxDB pra descobrir "quanto o contador
+      -- marcava no início do turno", o que é frágil (se o InfluxDB tiver
+      -- qualquer instabilidade bem naquele instante, o cálculo do turno
+      -- inteiro quebra). Uma linha por (turno, instante de início) — o
+      -- mesmo instante nunca muda de valor depois de gravado.
+      CREATE TABLE IF NOT EXISTS turno_contador_baseline (
+        turno_key VARCHAR(20) NOT NULL,
+        ocorrencia_inicio TIMESTAMPTZ NOT NULL,
+        tempo_rodando_base NUMERIC NOT NULL DEFAULT 0,
+        contagem_total_base NUMERIC NOT NULL DEFAULT 0,
+        contagem_refugo_base NUMERIC NOT NULL DEFAULT 0,
+        capturado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (turno_key, ocorrencia_inicio)
+      );
     `);
 
     // Duas variáveis com a mesma descrição confundem o picker de seleção do
@@ -777,29 +797,44 @@ app.get('/api/plc/tags', requireRole(['supervisor', 'administrador']), async (re
 // deduplicar por tempo, só verificar se já existe um alarme ATIVO para
 // aquela variável (defesa contra corrida entre abas abertas ao mesmo tempo).
 
+// Núcleo de disparar/normalizar um alarme — usado tanto pelas rotas HTTP
+// abaixo (alarmes de processo, disparados pelo navegador: ChartCard, OEE)
+// quanto pelo verificarSaudeSistema() (alarmes de infraestrutura, disparados
+// direto pelo backend, sem passar por HTTP). Um só lugar de verdade, pra não
+// repetir o mesmo erro de fórmula duplicada que já aconteceu com o OEE.
+async function triggerAlarm(fieldName, valueRead, limitType, limitValue) {
+  const existing = await db.query(
+    `SELECT id FROM alarm_history WHERE field_name = $1 AND status = 'ATIVO' LIMIT 1`,
+    [fieldName]
+  );
+  if (existing.rows.length > 0) return existing.rows[0].id;
+
+  const result = await db.query(
+    `INSERT INTO alarm_history (field_name, value_read, limit_type, limit_value, status)
+     VALUES ($1, $2, $3, $4, 'ATIVO') RETURNING id`,
+    [fieldName, valueRead, limitType, limitValue]
+  );
+  return result.rows[0].id;
+}
+
+async function resolveAlarm(fieldName) {
+  await db.query(
+    `UPDATE alarm_history SET status = 'NORMALIZADO', cleared_at = CURRENT_TIMESTAMP
+     WHERE field_name = $1 AND status = 'ATIVO'`,
+    [fieldName]
+  );
+}
+
 app.post('/api/alarms/trigger', async (req, res) => {
   const { fieldName, valueRead, limitType, limitValue } = req.body;
   if (!fieldName || valueRead === undefined || !limitType || limitValue === undefined) {
     return res.status(400).json({ error: 'Dados incompletos para registrar o alarme.' });
   }
   try {
-    const existing = await db.query(
-      `SELECT id FROM alarm_history WHERE field_name = $1 AND status = 'ATIVO' LIMIT 1`,
-      [fieldName]
-    );
-    if (existing.rows.length > 0) {
-      return res.json({ message: 'Já havia um alarme ativo para esta variável.', id: existing.rows[0].id });
-    }
-
-    const result = await db.query(
-      `INSERT INTO alarm_history (field_name, value_read, limit_type, limit_value, status)
-       VALUES ($1, $2, $3, $4, 'ATIVO') RETURNING id`,
-      [fieldName, valueRead, limitType, limitValue]
-    );
-
+    const id = await triggerAlarm(fieldName, valueRead, limitType, limitValue);
     // Eventos de alarme (disparo/normalização/reconhecimento) ficam só na
     // Central de Alarmes — não são replicados para a tela de Auditoria.
-    res.json({ message: 'Alarme registrado!', id: result.rows[0].id });
+    res.json({ message: 'Alarme registrado!', id });
   } catch (err) {
     console.error('Erro ao registrar alarme:', err.message);
     res.status(500).json({ error: 'Erro ao registrar o alarme. Tente novamente.' });
@@ -812,11 +847,7 @@ app.post('/api/alarms/resolve', async (req, res) => {
     return res.status(400).json({ error: 'Variável não informada.' });
   }
   try {
-    await db.query(
-      `UPDATE alarm_history SET status = 'NORMALIZADO', cleared_at = CURRENT_TIMESTAMP
-       WHERE field_name = $1 AND status = 'ATIVO' RETURNING id`,
-      [fieldName]
-    );
+    await resolveAlarm(fieldName);
     res.json({ message: 'Alarme normalizado.' });
   } catch (err) {
     console.error('Erro ao normalizar alarme:', err.message);
@@ -1274,7 +1305,73 @@ function ultimasOcorrencias(row, now, quantidade) {
 // janela nunca é anterior a esse ponto de partida. Se o turno inteiro já
 // tinha terminado antes do reset, devolve tudo zerado (esse turno "ainda não
 // aconteceu" desde que zeramos).
-async function calcularMetricasTurno(cfg, ocorrencia, zeradoEm) {
+// Devolve a "memória" do turno — os valores que o contador do CLP marcava
+// no instante em que esse turno começou a ser observado (efetivoInicio, já
+// considerando um "Zerar" manual se tiver acontecido) — capturando-a UMA
+// VEZ, na primeira chamada, e reaproveitando dali em diante. Ver comentário
+// da tabela turno_contador_baseline pra entender por que isso precisa ficar
+// gravado (e não ser reconsultado no InfluxDB toda hora).
+async function getOrCreateBaseline(turnoKey, efetivoInicio, cfg) {
+  const startISO = efetivoInicio.toISOString();
+  const ler = async () => {
+    const res = await db.query(
+      `SELECT tempo_rodando_base, contagem_total_base, contagem_refugo_base
+       FROM turno_contador_baseline WHERE turno_key = $1 AND ocorrencia_inicio = $2`,
+      [turnoKey, startISO]
+    );
+    if (res.rows.length === 0) return null;
+    const r = res.rows[0];
+    return {
+      tempoRodandoInicio: Number(r.tempo_rodando_base),
+      totalInicio: Number(r.contagem_total_base),
+      refugoInicio: Number(r.contagem_refugo_base)
+    };
+  };
+
+  const existente = await ler();
+  if (existente) return existente;
+
+  // Primeira vez que esse turno é observado — captura os valores atuais do
+  // CLP (mesma consulta histórica de sempre, só que feita uma vez só) e
+  // grava pra sempre. Busca também o valor de AGORA, pra comparar: um
+  // contador do CLP só sobe, nunca desce — se o histórico disser que o
+  // início do turno já valia MAIS do que o contador marca agora, esse
+  // histórico não é confiável (buraco de dados, falha de gravação — foi
+  // exatamente o que aconteceu em 03/09/2026 com uma instabilidade no
+  // InfluxDB). Nesse caso despreza o histórico e começa a contar a partir
+  // de AGORA, em vez de gravar uma base que deixaria o turno preso em 0%
+  // até o contador "alcançar" de novo um número que na real já passou.
+  const [tempoRodandoHist, totalHist, refugoHist, tempoRodandoAgora, totalAgora, refugoAgora] = await Promise.all([
+    influxBaseline(cfg.field_tempo_rodando, startISO),
+    influxBaseline(cfg.field_contagem_total, startISO),
+    influxBaseline(cfg.field_contagem_refugo, startISO),
+    influxLatestValue(cfg.field_tempo_rodando),
+    influxLatestValue(cfg.field_contagem_total),
+    influxLatestValue(cfg.field_contagem_refugo),
+  ]);
+  const escolherBase = (hist, agora) => (Number(hist || 0) <= Number(agora || 0) ? Number(hist || 0) : Number(agora || 0));
+  const tempoRodandoInicio = escolherBase(tempoRodandoHist, tempoRodandoAgora);
+  const totalInicio = escolherBase(totalHist, totalAgora);
+  const refugoInicio = escolherBase(refugoHist, refugoAgora);
+  if (tempoRodandoInicio !== Number(tempoRodandoHist || 0) || totalInicio !== Number(totalHist || 0) || refugoInicio !== Number(refugoHist || 0)) {
+    console.warn(`[OEE] Histórico inconsistente pro turno ${turnoKey} (início ${startISO}) — contador do CLP menor agora do que o registrado no início. Turno vai começar a contar a partir de agora.`);
+  }
+  await db.query(
+    `INSERT INTO turno_contador_baseline (turno_key, ocorrencia_inicio, tempo_rodando_base, contagem_total_base, contagem_refugo_base)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (turno_key, ocorrencia_inicio) DO NOTHING`,
+    [turnoKey, startISO, tempoRodandoInicio, totalInicio, refugoInicio]
+  );
+
+  // Relê do banco em vez de devolver o que acabou de calcular: se duas
+  // requisições caírem aqui ao mesmo tempo (bem no início do turno), as duas
+  // tentam gravar, o ON CONFLICT descarta uma delas, e essa releitura
+  // garante que TODAS enxergam a mesma linha vencedora — sem isso, uma
+  // conseguiria seguir com um valor ligeiramente diferente da outra.
+  return (await ler()) || { tempoRodandoInicio: 0, totalInicio: 0, refugoInicio: 0 };
+}
+
+async function calcularMetricasTurno(cfg, ocorrencia, zeradoEm, turnoKey = null) {
   const zeroBase = {
     isAtual: ocorrencia?.isAtual || false, plannedSeg: ocorrencia?.plannedSeg || 0,
     runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
@@ -1290,20 +1387,36 @@ async function calcularMetricasTurno(cfg, ocorrencia, zeradoEm) {
   const endISO = ocorrencia.end.toISOString();
   const valorNoFim = (tag) => (ocorrencia.isAtual ? influxLatestValue(tag) : influxValueAtOrBefore(tag, endISO));
 
+  // Turno rodando agora + identificado (turnoKey): usa a memória persistida
+  // (turno_contador_baseline) em vez de reconsultar "quanto o contador
+  // marcava lá no início" no InfluxDB toda vez — ver comentário da tabela.
+  // Pros outros casos (turno já fechado, ou o gráfico de tendência somando
+  // janelas de 15min já passadas — ver /api/oee/tendencia-turno) o início E
+  // o fim já são história antiga e estável, então a consulta direta de
+  // sempre continua sendo usada.
+  const usarMemoriaPersistida = ocorrencia.isAtual && !!turnoKey;
+  const baselinePromise = usarMemoriaPersistida
+    ? getOrCreateBaseline(turnoKey, effectiveStart, cfg)
+    : Promise.all([
+        influxBaseline(cfg.field_tempo_rodando, startISO),
+        influxBaseline(cfg.field_contagem_total, startISO),
+        influxBaseline(cfg.field_contagem_refugo, startISO),
+      ]).then(([tempoRodandoInicio, totalInicio, refugoInicio]) => ({ tempoRodandoInicio, totalInicio, refugoInicio }));
+
   const [
-    tempoRodandoFim, tempoRodandoInicio,
-    totalFim, totalInicio,
-    refugoFim, refugoInicio,
-    maquinaRodando
+    tempoRodandoFim,
+    totalFim,
+    refugoFim,
+    maquinaRodando,
+    baseline
   ] = await Promise.all([
     valorNoFim(cfg.field_tempo_rodando),
-    influxBaseline(cfg.field_tempo_rodando, startISO),
     valorNoFim(cfg.field_contagem_total),
-    influxBaseline(cfg.field_contagem_total, startISO),
     valorNoFim(cfg.field_contagem_refugo),
-    influxBaseline(cfg.field_contagem_refugo, startISO),
-    ocorrencia.isAtual ? influxLatestBoolValue(cfg.field_maquina_rodando) : Promise.resolve(null)
+    ocorrencia.isAtual ? influxLatestBoolValue(cfg.field_maquina_rodando) : Promise.resolve(null),
+    baselinePromise
   ]);
+  const { tempoRodandoInicio, totalInicio, refugoInicio } = baseline;
 
   const delta = (fim, inicio) => Math.max(0, Number(fim || 0) - Number(inicio ?? 0));
 
@@ -1389,7 +1502,7 @@ app.get('/api/oee/metrics', async (req, res) => {
       const zeradoEm = row.zerado_em ? new Date(row.zerado_em) : null;
       const ocorrencia = calcularOcorrencia(row, now);
       const metrics = configured
-        ? await calcularMetricasTurno(cfg, ocorrencia, zeradoEm)
+        ? await calcularMetricasTurno(cfg, ocorrencia, zeradoEm, row.turno_key)
         : { isAtual: ocorrencia?.isAtual || false, plannedSeg: ocorrencia?.plannedSeg || 0,
             runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0,
             maquinaRodando: null, velocidadeInstantaneaPpm: null };
@@ -1544,6 +1657,54 @@ async function detectarParadas() {
 }
 setInterval(detectarParadas, 15000);
 detectarParadas();
+
+// Verificação periódica das conexões externas de que o sistema depende —
+// sem isso, uma queda no InfluxDB (o "Historian") ou na API do Historian
+// só aparecia como um `console.error` dentro do container, invisível pra
+// quem está no chão de fábrica: os gráficos e o OEE simplesmente congelavam
+// sem nenhum aviso na tela. Agora dispara um alarme normal (mesma Central
+// de Alarmes de qualquer outro, com badge próprio "Falha de Conexão") assim
+// que a conexão cai, e normaliza sozinho quando ela volta.
+//
+// A conexão com o PRÓPRIO Postgres não entra aqui de propósito: se o
+// Postgres cair, não tem como GRAVAR um alarme nele mesmo avisando disso —
+// e, ao contrário do Historian, essa queda já é impossível de não notar (a
+// tela de login trava, todo o sistema fica visivelmente indisponível), então
+// não precisa de um alarme adicional pra chamar atenção pra algo que já é
+// autoevidente.
+async function verificarSaudeSistema() {
+  try {
+    // A conexão de verdade só é tentada quando o resultado é ITERADO — só
+    // dar `await` no `.query()` sem percorrer o retorno não faz nenhuma
+    // tentativa de rede (o client devolve um iterável "preguiçoso"), então
+    // uma queda de conexão passava batido aqui sem lançar erro nenhum.
+    const reader = await influxDB.query('SELECT 1');
+    for await (const _row of reader) break;
+    await resolveAlarm('Conexão com Historian (InfluxDB)');
+  } catch (err) {
+    try {
+      await triggerAlarm('Conexão com Historian (InfluxDB)', 0, 'CONEXAO', 1);
+    } catch (errAlarme) {
+      console.error('Erro ao registrar alarme de conexão com o Historian:', errAlarme.message);
+    }
+  }
+
+  try {
+    await fetch(`${HISTORIAN_API_URL}/`, { signal: AbortSignal.timeout(5000) });
+    // Qualquer resposta HTTP (mesmo 404/500) já prova que o servidor está de
+    // pé e alcançável — só uma exceção aqui (recusa de conexão, timeout, DNS)
+    // significa que a conexão em si está fora do ar.
+    await resolveAlarm('Conexão com API do Historian');
+  } catch (err) {
+    try {
+      await triggerAlarm('Conexão com API do Historian', 0, 'CONEXAO', 1);
+    } catch (errAlarme) {
+      console.error('Erro ao registrar alarme de conexão com a API do Historian:', errAlarme.message);
+    }
+  }
+}
+setInterval(verificarSaudeSistema, 30000);
+verificarSaudeSistema();
 
 // --- ROTAS DE MOTIVOS DE PARADA (catálogo) ---
 app.get('/api/paradas/motivos', async (req, res) => {
@@ -2024,7 +2185,7 @@ app.get('/api/oee/historico', async (req, res) => {
     const pontos = [];
     for (const occ of ocorrencias) {
       const metrics = configured
-        ? await calcularMetricasTurno(cfg, occ, zeradoEm)
+        ? await calcularMetricasTurno(cfg, occ, zeradoEm, row.turno_key)
         : { runTimeSec: 0, totalCount: 0, refugoCount: 0, goodCount: 0 };
       pontos.push({
         data: occ.start.toISOString(),
