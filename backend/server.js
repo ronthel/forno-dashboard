@@ -1496,11 +1496,19 @@ app.get('/api/oee/metrics', async (req, res) => {
     const now = new Date();
 
     const turnos = {};
+    // Início efetivo do turno que está rodando AGORA (start do turno, ou o
+    // "Zerar" se for mais recente) — usado pra impedir que o card de status
+    // da máquina (statusMaquina, logo abaixo) mostre "rodando há X" com um
+    // X maior que o próprio turno ativo. Ver statusAtualMaquina().
+    let turnoAtivoInicio = null;
     for (const row of turnosRes.rows) {
       // Ponto de partida do "Zerar" é POR TURNO agora (turnos_config.zerado_em)
       // — cada turno tem o seu, zerar um não mexe nos outros.
       const zeradoEm = row.zerado_em ? new Date(row.zerado_em) : null;
       const ocorrencia = calcularOcorrencia(row, now);
+      if (ocorrencia?.isAtual) {
+        turnoAtivoInicio = zeradoEm && zeradoEm.getTime() > ocorrencia.start.getTime() ? zeradoEm : ocorrencia.start;
+      }
       const metrics = configured
         ? await calcularMetricasTurno(cfg, ocorrencia, zeradoEm, row.turno_key)
         : { isAtual: ocorrencia?.isAtual || false, plannedSeg: ocorrencia?.plannedSeg || 0,
@@ -1533,7 +1541,7 @@ app.get('/api/oee/metrics', async (req, res) => {
       };
     }
 
-    const statusMaquina = await statusAtualMaquina(cfg);
+    const statusMaquina = await statusAtualMaquina(cfg, turnoAtivoInicio);
 
     res.json({ configured, velocidadeNominalPpm, turnos, statusMaquina });
   } catch (err) {
@@ -1547,14 +1555,25 @@ app.get('/api/oee/metrics', async (req, res) => {
 // se está parada agora, desde o início da parada ainda aberta; se está
 // rodando, desde o fim da última parada fechada (ou null se nunca parou
 // desde que o detector começou a observar).
-async function statusAtualMaquina(cfg) {
+async function statusAtualMaquina(cfg, turnoAtivoInicio) {
   if (!cfg.field_maquina_rodando) return { rodando: null, desde: null };
   const rodando = await influxLatestBoolValue(cfg.field_maquina_rodando);
   if (rodando === null) return { rodando: null, desde: null };
 
   if (rodando) {
     const r = await db.query('SELECT finalizado_em FROM paradas WHERE finalizado_em IS NOT NULL ORDER BY finalizado_em DESC LIMIT 1');
-    return { rodando: true, desde: r.rows[0]?.finalizado_em || null };
+    let desde = r.rows[0]?.finalizado_em || null;
+    // Nunca mostra "rodando desde" um instante ANTES do início do turno
+    // ativo — sem isso, um detector de paradas que ficou muito tempo sem
+    // registrar nada (ex: por causa de uma instabilidade no InfluxDB, como
+    // já aconteceu) fazia esse card mostrar "rodando há 118 horas" numa
+    // tela cujo turno ativo começou há só 4 — tudo nesta tela precisa ser
+    // coerente com o turno ativo. O detector continua registrando parada
+    // de verdade normalmente; isso só afeta o que aparece NESTE card.
+    if (turnoAtivoInicio && (!desde || new Date(desde).getTime() < turnoAtivoInicio.getTime())) {
+      desde = turnoAtivoInicio.toISOString();
+    }
+    return { rodando: true, desde };
   }
   const r = await db.query('SELECT iniciado_em FROM paradas WHERE finalizado_em IS NULL ORDER BY iniciado_em DESC LIMIT 1');
   return { rodando: false, desde: r.rows[0]?.iniciado_em || null };
